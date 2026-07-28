@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sponsoclub — prototype</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root{--bg:#f5f6f8;--surface:#fff;--surface2:#f0f2f5;--text:#1a1d21;--muted:#6b7280;--faint:#9ca3af;
+    --border:#e5e7eb;--bstrong:#d1d5db;--accent:#3b4cd8;--accentbg:#eceefb;--accenttx:#2b3aab;
+    --green:#159169;--greenbg:#e2f4ee;--amber:#b5730f;--amberbg:#fbf0dd;--radius:10px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;padding:0 0 60px}
+  .top{background:#14161c;color:#fff;padding:16px 22px;display:flex;align-items:center;gap:12px}
+  .top .logo{width:34px;height:34px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:19px}
+  .top h1{font-size:17px;font-weight:600}
+  .top p{font-size:12px;color:#9aa0b0}
+  .badge-live{margin-left:auto;font-size:11px;background:#1d2029;color:#7ee0bd;padding:5px 11px;border-radius:20px}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px}
+  .note{background:#fff8e6;border:1px solid #f3e2b3;color:#8a6d1a;font-size:12.5px;padding:10px 14px;border-radius:10px;margin-bottom:18px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
+  h2{font-size:15px;font-weight:600;margin-bottom:14px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+  label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
+  input,select{width:100%;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px;background:var(--surface)}
+  button{font-family:inherit;font-size:13px;padding:9px 14px;border-radius:8px;border:1px solid var(--bstrong);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  button:hover{background:var(--surface2)} button:active{transform:scale(.98)} button i{font-size:16px}
+  .primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .primary:hover{background:#3341bf}
+  .sect{margin-top:24px}
+  .item{display:flex;align-items:center;gap:13px;padding:12px 14px;border-bottom:1px solid var(--border)}
+  .item:last-child{border-bottom:none}
+  .ic{width:38px;height:38px;border-radius:9px;background:var(--accentbg);color:var(--accenttx);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+  .grow{flex:1;min-width:0}
+  .t{font-size:14px;font-weight:500}.s{font-size:12.5px;color:var(--muted);margin-top:1px}
+  .pill{font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .pill.green{background:var(--greenbg);color:var(--green)}.pill.amber{background:var(--amberbg);color:var(--amber)}.pill.gray{background:var(--surface2);color:var(--muted)}
+  .muted{color:var(--muted);font-size:12.5px}
+  .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--accentbg);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  dialog{border:none;border-radius:14px;padding:0;max-width:640px;width:92%;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  dialog::backdrop{background:rgba(0,0,0,.45)}
+  .dlg-h{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+  .dlg-b{padding:18px 20px;max-height:70vh;overflow:auto}
+  pre{white-space:pre-wrap;font-family:inherit;font-size:13.5px;line-height:1.7;background:var(--surface2);border-radius:10px;padding:14px 16px}
+  .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 14px}
+  .pack{border:1px solid var(--border);border-radius:10px;padding:12px}
+  .pack.reco{border:2px solid var(--accent)}
+  .pack .tier{font-size:12px;color:var(--muted)}.pack .price{font-size:18px;font-weight:600}
+  .empty{padding:30px;text-align:center;color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="top">
+  <div class="logo"><i class="ti ti-trophy"></i></div>
+  <div><h1>Sponsoclub — prototype</h1><p>détection réelle des sponsors locaux + génération de dossier</p></div>
+  <span class="badge-live"><i class="ti ti-bolt"></i> données publiques en direct</span>
+</div>
+
+<div class="wrap">
+  <div class="note"><strong>Prototype fonctionnel.</strong> La détection utilise en direct la Base Adresse Nationale et l'annuaire des entreprises de l'État (gratuit, sans compte). La génération du dossier est basée sur des modèles (branchable ensuite sur une vraie IA). Si une API ne répond pas, un jeu de démonstration se charge automatiquement.</div>
+
+  <div class="card">
+    <h2>Profil du club</h2>
+    <div class="grid">
+      <div><label>Nom du club</label><input id="nom" value="RC Villeneuve"></div>
+      <div><label>Adresse du stade</label><input id="adr" value="Stade Charléty, Paris"></div>
+      <div><label>Sport</label><input id="sport" value="Rugby"></div>
+      <div><label>Licenciés</label><input id="lic" type="number" value="240"></div>
+      <div><label>Spectateurs / match</label><input id="spec" type="number" value="600"></div>
+      <div><label>Abonnés réseaux</label><input id="res" type="number" value="3200"></div>
+      <div><label>Rayon (km)</label><input id="ray" type="number" value="3" min="1" max="20"></div>
+      <div style="display:flex;align-items:flex-end"><button class="primary" style="width:100%;justify-content:center" onclick="run()"><i class="ti ti-map-search"></i> Détecter les commerces</button></div>
+    </div>
+    <div id="status" class="muted" style="margin-top:12px"></div>
+  </div>
+
+  <div class="sect">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h2 id="reshead" style="margin:0">Prospects détectés</h2>
+      <span class="muted" id="rescount"></span>
+    </div>
+    <div class="card" id="results"><div class="empty">Renseigne l'adresse du stade puis lance la détection.</div></div>
+  </div>
+
+  <div class="sect">
+    <h2>Pipeline <span class="muted" id="pipcount"></span></h2>
+    <div class="card" id="pipeline"><div class="empty">Les commerces que tu ajoutes apparaîtront ici.</div></div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <div class="dlg-h"><strong id="dlg-title">Dossier</strong><button onclick="document.getElementById('dlg').close()" aria-label="Fermer"><i class="ti ti-x"></i></button></div>
+  <div class="dlg-b" id="dlg-body"></div>
+</dialog>
+
+<script>
+const $=id=>document.getElementById(id);
+let prospects=[], pipeline=[];
+
+// NAF division -> catégorie + score de pertinence sponsoring local
+function cat(naf){
+  const d=(naf||"").slice(0,2);
+  const map={
+    "47":["Commerce de détail","ti-building-store",3],"56":["Restauration","ti-tools-kitchen-2",3],
+    "45":["Automobile","ti-car",3],"96":["Services aux particuliers","ti-cut",3],
+    "10":["Alimentaire / boulangerie","ti-bread",3],"68":["Immobilier","ti-home",2],
+    "86":["Santé","ti-medical-cross",2],"43":["Artisanat / travaux","ti-hammer",2],
+    "41":["Construction","ti-building",2],"49":["Transport","ti-truck",2],
+    "69":["Conseil / juridique","ti-briefcase",2],"55":["Hébergement","ti-bed",2],
+    "77":["Location","ti-key",2],"93":["Sport / loisirs","ti-ballpen",2]
+  };
+  if(map[d]) return map[d];
+  return ["Entreprise locale","ti-building",1];
+}
+function haversine(la1,lo1,la2,lo2){
+  const R=6371,r=Math.PI/180,dLa=(la2-la1)*r,dLo=(lo2-lo1)*r;
+  const a=Math.sin(dLa/2)**2+Math.cos(la1*r)*Math.cos(la2*r)*Math.sin(dLo/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+async function geocode(q){
+  const u="https://api-adresse.data.gouv.fr/search/?limit=1&q="+encodeURIComponent(q);
+  const r=await fetch(u); if(!r.ok) throw new Error("geo"); const d=await r.json();
+  if(!d.features||!d.features.length) throw new Error("adresse introuvable");
+  const f=d.features[0]; return {lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1],label:f.properties.label};
+}
+async function nearby(lat,lon,radius){
+  const u=`https://recherche-entreprises.api.gouv.fr/near_point?lat=${lat}&long=${lon}&radius=${radius}&per_page=25&page=1`;
+  const r=await fetch(u); if(!r.ok) throw new Error("entreprises"); const d=await r.json();
+  return d.results||[];
+}
+function normalize(list,clat,clon){
+  return list.map(e=>{
+    const s=e.siege||{};
+    const name=e.nom_complet||e.nom_raison_sociale||s.nom_commercial||"Établissement";
+    const naf=e.activite_principale||s.activite_principale||"";
+    const [clabel,icon,base]=cat(naf);
+    const elat=parseFloat(s.latitude), elon=parseFloat(s.longitude);
+    let dist=null; if(!isNaN(elat)&&!isNaN(elon)) dist=haversine(clat,clon,elat,elon);
+    const emp=e.tranche_effectif_salarie||s.tranche_effectif_salarie||"";
+    // score : catégorie + proximité
+    let score=base; if(dist!=null){ if(dist<1)score+=1; else if(dist>4)score-=1; }
+    return {name:cleanName(name),clabel,icon,naf,dist,score,ville:s.libelle_commune||"",cp:s.code_postal||""};
+  }).filter(x=>x.score>=1).sort((a,b)=> b.score-a.score || ((a.dist??99)-(b.dist??99)) ).slice(0,20);
+}
+function cleanName(n){return n.replace(/\b([A-ZÀ-Ÿ]{2,})\b/g,w=>w.charAt(0)+w.slice(1).toLowerCase());}
+function matchLabel(s){return s>=4?["match élevé","green"]:s>=3?["match moyen","amber"]:["à qualifier","gray"];}
+
+async function run(){
+  const adr=$("adr").value.trim(); const radius=Math.min(20,Math.max(1,+$("ray").value||3));
+  $("status").innerHTML='<span class="spin"></span> Géocodage de l\'adresse…';
+  $("results").innerHTML='<div class="empty"><span class="spin"></span></div>';
+  try{
+    const g=await geocode(adr);
+    $("status").innerHTML='<span class="spin"></span> Recherche des commerces autour de « '+g.label+' »…';
+    const raw=await nearby(g.lat,g.lon,radius);
+    prospects=normalize(raw,g.lat,g.lon);
+    if(!prospects.length) throw new Error("aucun résultat");
+    $("status").innerHTML='<i class="ti ti-circle-check" style="color:var(--green)"></i> '+prospects.length+' commerces détectés autour de '+g.label+' (données en direct).';
+  }catch(err){
+    prospects=demo();
+    $("status").innerHTML='<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> API indisponible depuis ce contexte ('+err.message+') — jeu de démonstration chargé pour illustrer le parcours.';
+  }
+  renderResults();
+}
+function renderResults(){
+  $("rescount").textContent=prospects.length+" commerces";
+  if(!prospects.length){$("results").innerHTML='<div class="empty">Aucun commerce.</div>';return;}
+  $("results").innerHTML=prospects.map((p,i)=>{
+    const [ml,mc]=matchLabel(p.score);
+    const d=p.dist!=null?(p.dist<1?Math.round(p.dist*1000)+" m":p.dist.toFixed(1)+" km"):"—";
+    return `<div class="item"><div class="ic"><i class="ti ${p.icon}"></i></div>
+      <div class="grow"><div class="t">${p.name}</div><div class="s">${p.clabel} · ${d}${p.ville?" · "+p.ville:""}</div></div>
+      <span class="pill ${mc}">${ml}</span>
+      <button class="primary" onclick="dossier(${i})"><i class="ti ti-sparkles"></i> Dossier</button></div>`;
+  }).join("");
+}
+function clubInfo(){return {nom:$("nom").value,sport:$("sport").value,lic:+$("lic").value||0,spec:+$("spec").value||0,res:+$("res").value||0};}
+function dossier(i){
+  const p=prospects[i], c=clubInfo();
+  const email=`Objet : ${p.name} sur les maillots du ${c.nom} ?
+
+Bonjour,
+
+Je suis en charge des partenariats du ${c.nom} — ${c.lic} licenciés et environ ${c.spec} spectateurs à chaque match. Beaucoup sont des familles installées à quelques minutes de chez vous.
+
+Nous cherchons des partenaires locaux pour la saison. En échange d'un soutien, votre enseigne serait visible auprès de ce public : panneau au stade, logo sur nos tenues, et relais sur nos réseaux (${c.res} abonnés). J'ai préparé trois formules, de 300 à 1 500 €.
+
+Auriez-vous 15 minutes cette semaine pour en parler ?
+
+Bien à vous,
+${c.nom}`;
+  $("dlg-title").textContent="Dossier de sponsoring · "+p.name;
+  $("dlg-body").innerHTML=`
+    <p class="muted" style="margin-bottom:10px">${p.clabel}${p.ville?" · "+p.ville:""} · ${p.dist!=null?(p.dist<1?Math.round(p.dist*1000)+" m":p.dist.toFixed(1)+" km"):""} du stade</p>
+    <div class="packs">
+      <div class="pack"><div class="tier">Bronze</div><div class="price">300 €</div><div class="muted">logo site · 4 posts/an</div></div>
+      <div class="pack reco"><div class="tier">Argent · recommandé</div><div class="price">800 €</div><div class="muted">+ panneau stade · logo short · 12 posts</div></div>
+      <div class="pack"><div class="tier">Or</div><div class="price">1 500 €</div><div class="muted">+ logo maillot · match parrainé</div></div>
+    </div>
+    <label style="margin-bottom:6px">Email d'approche généré</label>
+    <pre id="mail">${email.replace(/</g,"&lt;")}</pre>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="navigator.clipboard.writeText(document.getElementById('mail').innerText);this.innerHTML='<i class=\\'ti ti-check\\'></i> Copié'"><i class="ti ti-copy"></i> Copier l'email</button>
+      <button class="primary" onclick="addPipe(${i});document.getElementById('dlg').close()"><i class="ti ti-plus"></i> Ajouter au pipeline</button>
+    </div>`;
+  $("dlg").showModal();
+}
+function addPipe(i){ const p=prospects[i]; if(!pipeline.find(x=>x.name===p.name)){pipeline.push({name:p.name,clabel:p.clabel,status:"À contacter"});renderPipe();} }
+function renderPipe(){
+  $("pipcount").textContent=pipeline.length?("· "+pipeline.length):"";
+  if(!pipeline.length){$("pipeline").innerHTML='<div class="empty">Les commerces que tu ajoutes apparaîtront ici.</div>';return;}
+  $("pipeline").innerHTML=pipeline.map((p,i)=>`<div class="item"><div class="ic"><i class="ti ti-building-store"></i></div>
+    <div class="grow"><div class="t">${p.name}</div><div class="s">${p.clabel}</div></div>
+    <select onchange="pipeline[${i}].status=this.value" style="width:150px">
+      ${["À contacter","Contacté","RDV","Signé","Perdu"].map(s=>`<option ${p.status===s?"selected":""}>${s}</option>`).join("")}
+    </select></div>`).join("");
+}
+function demo(){return [
+  {name:"Garage Central",clabel:"Automobile",icon:"ti-car",dist:1.2,score:4,ville:"Villeneuve",cp:""},
+  {name:"Boulangerie Moreau",clabel:"Alimentaire / boulangerie",icon:"ti-bread",dist:0.6,score:4,ville:"Villeneuve",cp:""},
+  {name:"Pizza Bella",clabel:"Restauration",icon:"ti-tools-kitchen-2",dist:0.9,score:4,ville:"Villeneuve",cp:""},
+  {name:"Agence Immo du Parc",clabel:"Immobilier",icon:"ti-home",dist:2.4,score:3,ville:"Villeneuve",cp:""},
+  {name:"Pharmacie du Centre",clabel:"Santé",icon:"ti-medical-cross",dist:1.8,score:3,ville:"Villeneuve",cp:""},
+  {name:"Coiffure Émilie",clabel:"Services aux particuliers",icon:"ti-cut",dist:1.1,score:3,ville:"Villeneuve",cp:""}
+];}
+</script>
+</body>
+</html>
