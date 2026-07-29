@@ -165,7 +165,12 @@
     <div class="sect tabpage tab-sponsors">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <h2 style="margin:0">Pipeline <span class="muted" id="pipcount"></span></h2>
-        <button onclick="addPartner()"><i class="ti ti-plus"></i> Ajouter un partenaire</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button onclick="downloadModel()"><i class="ti ti-file-spreadsheet"></i> Modèle Excel</button>
+          <button onclick="document.getElementById('import-file').click()"><i class="ti ti-upload"></i> Importer</button>
+          <input type="file" id="import-file" accept=".xlsx,.xls,.csv" style="display:none" onchange="importPartners(event)">
+          <button onclick="addPartner()"><i class="ti ti-plus"></i> Ajouter</button>
+        </div>
       </div>
       <div class="card" id="pipeline"><div class="empty">Chargement…</div></div>
     </div>
@@ -190,6 +195,7 @@
 </dialog>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 // ====== CONFIGURATION ======
 const SUPABASE_URL = "https://pizltvprhpbtxgpymjsq.supabase.co";
@@ -487,6 +493,43 @@ async function savePartner(btn){
   btn.disabled=false;
   if(error){alert("Erreur: "+error.message);return;}
   $("dlg").close(); loadPipe();
+}
+function downloadModel(){
+  const rows=[["Nom","Catégorie","Statut","Pack","Montant","Email","Téléphone","Site web"],
+              ["Garage Central","Automobile","Signé","Argent","800","contact@garage.fr","01 23 45 67 89","https://garage-central.fr"],
+              ["Boulangerie Moreau","Alimentaire","Signé","Bronze","300","","","",]];
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws["!cols"]=[{wch:26},{wch:16},{wch:12},{wch:10},{wch:10},{wch:24},{wch:16},{wch:26}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Partenaires");
+  XLSX.writeFile(wb,"modele-partenaires-sponsoclub.xlsx");
+}
+function importPartners(e){
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  const rd=new FileReader();
+  rd.onload=async ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:"array"});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{defval:""});
+      const num=v=>{const n=parseFloat((""+v).replace(/[^0-9.,]/g,"").replace(",","."));return isNaN(n)?null:n;};
+      const toInsert=rows.map(r=>({
+        name:(""+(r["Nom"]||r["nom"]||"")).trim(),
+        categorie:(""+(r["Catégorie"]||r["Categorie"]||"")).trim()||null,
+        statut:(""+(r["Statut"]||"")).trim()||"Signé",
+        pack:(""+(r["Pack"]||"")).trim()||null,
+        montant:num(r["Montant"]),
+        email_to:(""+(r["Email"]||"")).trim()||null,
+        phone:(""+(r["Téléphone"]||r["Telephone"]||"")).trim()||null,
+        website:(""+(r["Site web"]||r["Site"]||"")).trim()||null
+      })).filter(x=>x.name);
+      e.target.value="";
+      if(!toInsert.length){alert("Aucune ligne valide (vérifie la colonne « Nom »).");return;}
+      const {error}=await sb.from("pipeline").insert(toInsert);
+      if(error){alert("Erreur import : "+error.message);return;}
+      alert(toInsert.length+" partenaire(s) importé(s) ✅");
+      loadPipe();
+    }catch(err){alert("Fichier illisible : "+err.message);e.target.value="";}
+  };
+  rd.readAsArrayBuffer(f);
 }
 async function loadActions(){
   const {data,error}=await sb.from("actions").select("*").order("fait",{ascending:true}).order("echeance",{ascending:true,nullsFirst:false}).order("created_at",{ascending:true});
