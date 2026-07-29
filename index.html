@@ -128,6 +128,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
 const PAGE=10;
+let pipeData=[], spSaved={};
 
 if(SUPABASE_ANON_KEY==="COLLE_ICI_TA_CLE_ANON"){
   $("auth-msg").className="msg err";
@@ -246,14 +247,43 @@ async function addPipe(i){
 async function loadPipe(){
   const {data,error}=await sb.from("pipeline").select("*").order("created_at",{ascending:false});
   if(error){$("pipeline").innerHTML='<div class="empty">Erreur: '+error.message+'</div>';return;}
-  $("pipcount").textContent=data.length?("· "+data.length):"";
-  if(!data.length){$("pipeline").innerHTML='<div class="empty">Ajoute un commerce depuis « Dossier ».</div>';return;}
+  pipeData=data||[];
+  $("pipcount").textContent=pipeData.length?("· "+pipeData.length):"";
+  if(!pipeData.length){$("pipeline").innerHTML='<div class="empty">Ajoute un commerce depuis « Dossier ».</div>';return;}
   const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
-  $("pipeline").innerHTML=data.map(p=>`<div class="item"><div class="ic"><i class="ti ti-building-store"></i></div>
-    <div class="grow"><div class="t">${p.name}</div><div class="s">${p.categorie||""}</div></div>
-    <select onchange="setStatut(${p.id},this.value)" style="width:150px">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select>
+  $("pipeline").innerHTML=pipeData.map(p=>`<div class="item"><div class="ic"><i class="ti ti-building-store"></i></div>
+    <div class="grow"><div class="t">${p.name}</div><div class="s">${p.categorie||""}${p.pack?" · "+p.pack:""}${p.montant?" · "+p.montant+" €":""}${p.next_action?' · <span style="color:var(--amber)">→ '+p.next_action+'</span>':""}</div></div>
+    <button class="primary" onclick="openSponsor(${p.id})"><i class="ti ti-settings"></i> Gérer</button>
+    <select onchange="setStatut(${p.id},this.value)" style="width:128px">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select>
     <button onclick="delPipe(${p.id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div>`).join("");
 }
+function contrepartiesFor(pack){const b={Bronze:["Logo sur le site","4 posts réseaux / an","Citation newsletter"],Argent:["Logo sur le site","Panneau au stade","Logo sur le short","12 posts réseaux","Invitation match VIP"],Or:["Logo sur le maillot","Panneau au stade","12 posts réseaux","Match parrainé à son nom","Invitation match VIP","Logo sur le site"]};return b[pack]||b.Argent;}
+function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
+function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;color:var(--text)"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}> ${c}</label>`).join("");}
+function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const def={Bronze:300,Argent:800,Or:1500}[pack];const mt=$("sp-montant");if(def&&(!mt.value||mt.dataset.auto==="1")){mt.value=def;mt.dataset.auto="1";}}
+function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
+  $("dlg-title").textContent="Gérer · "+p.name;
+  $("dlg-body").innerHTML=`
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div><label>Statut</label><select id="sp-statut" onchange="document.getElementById('sp-hint').textContent=actionHint(this.value)">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div><label>Pack</label><select id="sp-pack" onchange="packChanged()">${["Bronze","Argent","Or"].map(o=>`<option ${pack===o?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
+      <div><label>Prochaine action</label><input id="sp-action" value="${(p.next_action||'').replace(/"/g,'&quot;')}" placeholder="ex. relancer le 15/09"></div>
+    </div>
+    <div style="background:var(--accentbg);color:var(--accenttx);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px"><i class="ti ti-bulb"></i> <span id="sp-hint">${actionHint(p.statut)}</span></div>
+    <label style="margin-bottom:6px">Contreparties à livrer</label>
+    <div id="sp-cps" style="margin-bottom:14px"></div>
+    <label>Notes</label>
+    <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
+    <div style="display:flex;gap:8px;margin-top:14px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="document.getElementById('dlg').close()">Fermer</button></div>`;
+  renderCps(pack);
+  $("dlg").showModal();
+}
+async function saveSponsor(id){const cps={};document.querySelectorAll("#sp-cps input[type=checkbox]").forEach(cb=>{cps[cb.dataset.cp]=cb.checked;});
+  const row={statut:$("sp-statut").value,pack:$("sp-pack").value,montant:(+$("sp-montant").value||null),next_action:$("sp-action").value,notes:$("sp-notes").value,contreparties:cps};
+  const {error}=await sb.from("pipeline").update(row).eq("id",id);
+  if(error){alert("Erreur: "+error.message);return;}
+  $("dlg").close();loadPipe();}
 async function setStatut(id,v){ await sb.from("pipeline").update({statut:v}).eq("id",id); }
 async function delPipe(id){ await sb.from("pipeline").delete().eq("id",id); loadPipe(); }
 function demo(){return [
