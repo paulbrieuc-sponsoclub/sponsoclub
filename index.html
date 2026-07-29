@@ -214,11 +214,32 @@ function hue(n){let h=0;for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))%360;
 function vign(p){if(p.photo)return `<img src="${p.photo}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0">`;return `<div style="width:44px;height:44px;border-radius:10px;background:${hue(p.name)};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0;position:relative">${initials(p.name)}<span style="position:absolute;right:-5px;bottom:-5px;width:20px;height:20px;border-radius:50%;background:#fff;color:#14161c;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 0 0 1px #e5e7eb"><i class="ti ${p.ic}"></i></span></div>`;}
 async function geocode(q){const r=await fetch("https://api-adresse.data.gouv.fr/search/?limit=1&q="+encodeURIComponent(q));if(!r.ok)throw new Error("geo");const d=await r.json();if(!d.features||!d.features.length)throw new Error("adresse introuvable");const f=d.features[0];return{lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1],label:f.properties.label};}
 async function nearby(lat,lon,rad){let all=[];let ok=false;for(let p=1;p<=4;p++){const r=await fetch(`https://recherche-entreprises.api.gouv.fr/near_point?lat=${lat}&long=${lon}&radius=${rad}&per_page=25&page=${p}`);if(!r.ok){if(p===1)throw new Error("entreprises");break;}ok=true;const d=await r.json();const res=d.results||[];all=all.concat(res);if(res.length<25)break;}if(!ok)throw new Error("entreprises");return all;}
+async function overpass(lat,lon,radKm){
+  const m=Math.round(Math.min(radKm,6)*1000);
+  const q=`[out:json][timeout:20];(node(around:${m},${lat},${lon})[shop];node(around:${m},${lat},${lon})[amenity~"restaurant|cafe|bar|pub|fast_food|pharmacy|fuel|bank"];);out center tags 250;`;
+  const r=await fetch("https://overpass-api.de/api/interpreter?data="+encodeURIComponent(q));
+  if(!r.ok)throw new Error("carte indisponible");
+  const d=await r.json(); return d.elements||[];
+}
+function osmCat(t){const a=t.amenity,s=t.shop;
+  const A={restaurant:["Restaurant","ti-tools-kitchen-2",3],cafe:["Café","ti-coffee",3],bar:["Bar","ti-glass",3],pub:["Pub","ti-beer",3],fast_food:["Restauration rapide","ti-tools-kitchen-2",3],pharmacy:["Pharmacie","ti-medical-cross",3],fuel:["Station-service","ti-gas-station",2],bank:["Banque","ti-building-bank",2]};
+  if(a&&A[a])return A[a];
+  const S={supermarket:["Supermarché","ti-shopping-cart",3],convenience:["Épicerie","ti-building-store",3],bakery:["Boulangerie","ti-bread",3],hairdresser:["Coiffeur","ti-cut",3],butcher:["Boucherie","ti-meat",3],car:["Automobile","ti-car",3],car_repair:["Garage","ti-car",3],clothes:["Vêtements","ti-shirt",3],florist:["Fleuriste","ti-building-store",2],optician:["Opticien","ti-building-store",2]};
+  if(s&&S[s])return S[s];
+  if(s)return["Commerce","ti-building-store",3];
+  return["Commerce local","ti-building-store",2];
+}
+function parseOsm(els,clat,clon){return (els||[]).map(e=>{const t=e.tags||{};const name=t.name;if(!name)return null;const la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);let dist=null;if(la!=null&&lo!=null)dist=hav(clat,clon,la,lo);const[cl,ic,sc]=osmCat(t);const photo=(t.image&&/^https?:\/\//.test(t.image))?t.image:null;return{name:name,cl,ic,sc,dist,ville:t["addr:city"]||"",photo};}).filter(x=>x);}
+function mergeDedupe(list){list.sort((a,b)=>b.sc-a.sc||((a.dist??1e9)-(b.dist??1e9)));const seen={},out=[];for(const x of list){const k=(x.name||"").toLowerCase().trim();if(!k||seen[k])continue;seen[k]=1;out.push(x);}return out.slice(0,60);}
 function normalize(list,clat,clon){const seen={};return list.map(e=>{const et=(e.matching_etablissements&&e.matching_etablissements[0])||e.siege||{};if(et.etat_administratif&&et.etat_administratif!=="A")return null;const name=e.nom_complet||et.nom_commercial||e.nom_raison_sociale||"Établissement";const naf=et.activite_principale||e.activite_principale||"";const [cl,ic,base]=cat(naf);const el=parseFloat(et.latitude),eo=parseFloat(et.longitude);let dist=null;if(!isNaN(el)&&!isNaN(eo))dist=hav(clat,clon,el,eo);let ville=et.libelle_commune||"";if(!ville&&et.adresse){const mm=et.adresse.match(/\d{5}\s+(.+)$/);if(mm)ville=mm[1].trim();}let sc=base;if(dist!=null){if(dist<1)sc++;else if(dist>4)sc--;}return{name:cn(name),cl,ic,sc,dist,ville:cn(ville)};}).filter(x=>{if(!x||x.sc<1)return false;const k=x.name.toLowerCase();if(seen[k])return false;seen[k]=1;return true;}).sort((a,b)=>b.sc-a.sc||((a.dist??99)-(b.dist??99))).slice(0,40);}
 async function run(){
   const adr=$("adr").value.trim();const rad=Math.min(20,Math.max(1,+$("ray").value||3));
   $("status").innerHTML='<span class="spin"></span> Géocodage…'; $("results").innerHTML='<div class="empty"><span class="spin"></span></div>';
-  try{const g=await geocode(adr);$("status").innerHTML='<span class="spin"></span> Recherche autour de « '+g.label+' »…';const raw=await nearby(g.lat,g.lon,rad);prospects=normalize(raw,g.lat,g.lon);if(!prospects.length)throw new Error("aucun résultat");$("status").innerHTML='<i class="ti ti-circle-check" style="color:var(--green)"></i> '+prospects.length+' commerces détectés autour de '+g.label+'.';}
+  try{const g=await geocode(adr);$("status").innerHTML='<span class="spin"></span> Recherche des commerces autour de « '+g.label+' »…';
+    const [rE,rO]=await Promise.allSettled([nearby(g.lat,g.lon,rad),overpass(g.lat,g.lon,Math.min(rad,5))]);
+    let a=[];if(rO.status==="fulfilled")a=a.concat(parseOsm(rO.value,g.lat,g.lon));if(rE.status==="fulfilled")a=a.concat(normalize(rE.value,g.lat,g.lon));
+    prospects=mergeDedupe(a);if(!prospects.length)throw new Error("aucun résultat");
+    $("status").innerHTML='<i class="ti ti-circle-check" style="color:var(--green)"></i> '+prospects.length+' commerces détectés autour de '+g.label+' (commerces locaux + entreprises).';}
   catch(err){prospects=demo();$("status").innerHTML='<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> API indisponible ('+err.message+') — démonstration chargée.';}
   curPage=1;renderResults();
 }
