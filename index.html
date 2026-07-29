@@ -155,6 +155,16 @@
       <div id="members-list"></div>
     </div>
 
+    <div class="card tabpage tab-profil">
+      <h2 style="margin:0 0 4px"><i class="ti ti-folder"></i> Documents du club</h2>
+      <p class="muted" style="font-size:13.5px;margin-bottom:14px">Importez vos documents (dossier de partenariat, plaquette, reçu type…). Vous pourrez les joindre à vos emails aux sponsors. Max 5 Mo par fichier.</p>
+      <div style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <input type="file" id="doc-file" onchange="uploadDoc(event)" style="font-size:13px;border:none;padding:0">
+        <span id="doc-status" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <div id="docs-list"></div>
+    </div>
+
     <div class="sect tabpage tab-offres">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <h2 style="margin:0">Offres de sponsoring</h2>
@@ -225,7 +235,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
-let clubId=null, myRole="owner", clubMembers=[];
+let clubId=null, myRole="owner", clubMembers=[], clubDocs=[];
 const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
 let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
@@ -269,7 +279,7 @@ async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
   await joinClub();
-  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); switchTab("sponsors");
+  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); switchTab("sponsors");
 }
 async function joinClub(){
   clubId=user.id; // repli par défaut
@@ -355,6 +365,46 @@ async function removeMember(id,btn){
   const {error}=await sb.from("members").delete().eq("id",id);
   if(error){alert("Erreur : "+error.message);return;}
   loadMembers();
+}
+function fmtSize(b){b=+b||0;if(b<1024)return b+" o";if(b<1048576)return Math.round(b/1024)+" Ko";return (b/1048576).toFixed(1)+" Mo";}
+async function loadDocs(){
+  if(!clubId)return;
+  const {data,error}=await sb.from("documents").select("id,name,mime,size,created_at").eq("club_id",clubId).order("created_at",{ascending:false});
+  clubDocs=error?[]:(data||[]);
+  renderDocs();renderAttach();
+}
+function renderDocs(){
+  const box=$("docs-list");if(!box)return;
+  if(!clubDocs.length){box.innerHTML='<div class="empty">Aucun document. Importez votre dossier de partenariat ci-dessus.</div>';return;}
+  box.innerHTML=clubDocs.map(d=>`<div class="item"><i class="ti ti-file-text" style="font-size:20px;color:var(--accent)"></i><div class="grow"><div class="t">${(d.name||'').replace(/</g,"&lt;")}</div><div class="s">${fmtSize(d.size)}</div></div><button onclick="downloadDoc(${d.id})" aria-label="Télécharger" style="padding:8px"><i class="ti ti-download"></i></button><button onclick="deleteDoc(${d.id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div>`).join("");
+}
+function uploadDoc(e){
+  const f=e.target.files&&e.target.files[0];if(!f)return;
+  if(f.size>5*1024*1024){alert("Fichier trop lourd (max 5 Mo).");e.target.value="";return;}
+  const st=$("doc-status");if(st)st.textContent="Import…";
+  const rd=new FileReader();
+  rd.onload=async ev=>{
+    const b64=(""+ev.target.result).replace(/^data:[^;]+;base64,/,"");
+    const {error}=await sb.from("documents").insert({club_id:clubId,name:f.name,mime:f.type||"application/octet-stream",size:f.size,data:b64});
+    e.target.value="";if(st)st.textContent="";
+    if(error){alert("Erreur import : "+error.message);return;}
+    loadDocs();
+  };
+  rd.onerror=()=>{if(st)st.textContent="";alert("Lecture du fichier impossible.");};
+  rd.readAsDataURL(f);
+}
+async function downloadDoc(id){
+  const {data,error}=await sb.from("documents").select("data,mime,name").eq("id",id).maybeSingle();
+  if(error||!data||!data.data){alert("Document introuvable.");return;}
+  const bin=atob(data.data);const arr=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)arr[i]=bin.charCodeAt(i);
+  const blob=new Blob([arr],{type:data.mime||"application/octet-stream"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=data.name||"document";document.body.appendChild(a);a.click();a.remove();
+}
+async function deleteDoc(id){if(!confirm("Supprimer ce document ?"))return;const {error}=await sb.from("documents").delete().eq("id",id);if(error){alert("Erreur : "+error.message);return;}loadDocs();}
+function renderAttach(){
+  const box=$("sp-attach");if(!box)return;
+  if(!clubDocs.length){box.innerHTML='<div class="muted" style="font-size:12.5px"><i class="ti ti-paperclip"></i> Aucune pièce jointe disponible. Importez vos documents dans Profil du club → Documents.</div>';return;}
+  box.innerHTML='<div style="font-size:12.5px;color:var(--muted);margin-bottom:6px"><i class="ti ti-paperclip"></i> Joindre un document :</div>'+clubDocs.map(d=>`<label class="cp" style="max-width:none"><input type="checkbox" data-docid="${d.id}"><span>${(d.name||'').replace(/</g,"&lt;")} <span class="muted">(${fmtSize(d.size)})</span></span></label>`).join("");
 }
 function applyTheme(){document.documentElement.style.setProperty("--accent",clubPrimary);document.documentElement.style.setProperty("--accenttx",clubPrimary);}
 function setTheme(which,val){if(which==="primary")clubPrimary=val;else clubSecondary=val;applyTheme();updateTopLogo();}
@@ -540,6 +590,7 @@ function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSave
       <div><label>Objet</label><input id="sp-subject" value="${(p.email_subject||'').replace(/"/g,'&quot;')}" placeholder="Partenariat avec le club"></div>
     </div>
     <textarea id="sp-body" style="width:100%;min-height:130px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13.5px;line-height:1.6" placeholder="Rédige avec l'IA ou écris ton message…"></textarea>
+    <div id="sp-attach" style="margin-top:10px"></div>
     <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
       <button onclick="aiEmailFiche(${id},this)"><i class="ti ti-sparkles"></i> Rédiger avec l'IA</button>
       <button class="primary" onclick="sendEmail(${id},this)"><i class="ti ti-send"></i> Envoyer</button>
@@ -559,7 +610,7 @@ function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSave
     <label style="font-weight:500;display:block;margin-bottom:6px"><i class="ti ti-share"></i> Espace partenaire (à partager)</label>
     <p class="muted" style="font-size:13px;margin-bottom:8px">Une page publique aux couleurs du club — formule, contreparties livrées et visibilité estimée. À envoyer au sponsor comme preuve de ce qu'il reçoit.</p>
     <div id="sp-share"></div>`;
-  renderCps(pack);renderShare(id);
+  renderCps(pack);renderShare(id);renderAttach();
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
@@ -688,7 +739,13 @@ async function sendEmail(id,btn){const to=$("sp-email").value.trim(),subject=$("
   const bo=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';
   const track=location.origin+"/api/track?id="+id;
   const html=body.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>")+'<img src="'+track+'" width="1" height="1" style="display:none" alt="">';
-  try{const r=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to,subject,html,fromName:$("nom").value||"Sponsoclub",replyTo:(user&&user.email)||""})});
+  let attachments=[];
+  const ids=[...document.querySelectorAll("#sp-attach input[type=checkbox]:checked")].map(cb=>+cb.dataset.docid);
+  if(ids.length){
+    const {data:docs}=await sb.from("documents").select("name,data").in("id",ids);
+    attachments=(docs||[]).filter(d=>d.data).map(d=>({filename:d.name,content:d.data}));
+  }
+  try{const r=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to,subject,html,fromName:$("nom").value||"Sponsoclub",replyTo:(user&&user.email)||"",attachments})});
     const j=await r.json().catch(()=>({error:"réponse invalide"}));if(!r.ok||j.error)throw new Error(j.error||("HTTP "+r.status));
     await sb.from("pipeline").update({email_to:to,email_subject:subject,email_sent_at:new Date().toISOString(),statut:"Contacté"}).eq("id",id);
     const p=pipeData.find(x=>x.id===id);if(p){p.email_to=to;p.email_subject=subject;p.email_sent_at=new Date().toISOString();p.statut="Contacté";}
