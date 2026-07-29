@@ -42,6 +42,10 @@
   .spin{display:inline-block;width:16px;height:16px;border:2px solid var(--accentbg);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px}
   @keyframes sp{to{transform:rotate(360deg)}}
   .empty{padding:30px;text-align:center;color:var(--faint)}
+  #kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:20px}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 18px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
+  .kpi-l{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .kpi-v{font-size:26px;font-weight:600;letter-spacing:-.02em}
   dialog{border:none;border-radius:16px;padding:0;width:min(720px,94vw);max-height:88vh;overflow:hidden;margin:auto;box-shadow:0 24px 70px rgba(0,0,0,.35)}
   dialog::backdrop{background:rgba(0,0,0,.5)}
   .dlg-h{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border)}
@@ -86,6 +90,7 @@
     <div class="me"><span id="who"></span><button onclick="logout()" style="color:#fff;border-color:#333;background:#1d2029"><i class="ti ti-logout"></i> Déconnexion</button></div>
   </div>
   <div class="wrap">
+    <div id="kpis"></div>
     <div class="card">
       <h2>Profil du club</h2>
       <div class="grid">
@@ -253,6 +258,7 @@ async function loadPipe(){
   const {data,error}=await sb.from("pipeline").select("*").order("created_at",{ascending:false});
   if(error){$("pipeline").innerHTML='<div class="empty">Erreur: '+error.message+'</div>';return;}
   pipeData=data||[];
+  renderKpis();
   $("pipcount").textContent=pipeData.length?("· "+pipeData.length):"";
   if(!pipeData.length){$("pipeline").innerHTML='<div class="empty">Ajoute un commerce depuis « Dossier ».</div>';return;}
   const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
@@ -261,6 +267,14 @@ async function loadPipe(){
     <button class="primary" onclick="openSponsor(${p.id})"><i class="ti ti-settings"></i> Gérer</button>
     <select onchange="setStatut(${p.id},this.value)" style="width:128px">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select>
     <button onclick="delPipe(${p.id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div>`).join("");
+}
+function renderKpis(){
+  const signes=pipeData.filter(p=>p.statut==="Signé");
+  const argent=signes.reduce((s,p)=>s+(+p.montant||0),0);
+  const encours=pipeData.filter(p=>p.statut&&p.statut!=="Signé"&&p.statut!=="Perdu").length;
+  const actions=pipeData.filter(p=>p.next_action&&(""+p.next_action).trim()).length;
+  const cards=[["Sponsors signés",signes.length,"ti-heart-handshake"],["Argent généré",argent.toLocaleString("fr-FR")+" €","ti-cash"],["Dossiers en cours",encours,"ti-clock"],["Actions à mener",actions,"ti-checklist"]];
+  $("kpis").innerHTML=cards.map(c=>`<div class="kpi"><div class="kpi-l"><i class="ti ${c[2]}"></i> ${c[0]}</div><div class="kpi-v">${c[1]}</div></div>`).join("");
 }
 function contrepartiesFor(pack){const b={Bronze:["Logo sur le site","4 posts réseaux / an","Citation newsletter"],Argent:["Logo sur le site","Panneau au stade","Logo sur le short","12 posts réseaux","Invitation match VIP"],Or:["Logo sur le maillot","Panneau au stade","12 posts réseaux","Match parrainé à son nom","Invitation match VIP","Logo sur le site"]};return b[pack]||b.Argent;}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
