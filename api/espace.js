@@ -9,10 +9,10 @@ module.exports = async (req, res) => {
   if (!key) { res.status(500).json({ error: 'Service indisponible.' }); return; }
   const h = { apikey: key, Authorization: 'Bearer ' + key };
   try {
-    const pr = await (await fetch(url + '/rest/v1/pipeline?share_token=eq.' + encodeURIComponent(token) + '&select=name,pack,montant,statut,contrat_signe,payment_status,contreparties,user_id&limit=1', { headers: h })).json();
+    const pr = await (await fetch(url + '/rest/v1/pipeline?share_token=eq.' + encodeURIComponent(token) + '&select=*&limit=1', { headers: h })).json();
     const row = Array.isArray(pr) ? pr[0] : null;
-    if (!row) { res.status(404).json({ error: 'Espace introuvable.' }); return; }
-    const pf = await (await fetch(url + '/rest/v1/profiles?id=eq.' + encodeURIComponent(row.user_id) + '&select=club_nom,sport,licencies,spectateurs,reseaux,logo,couleur_primaire,couleur_secondaire,offres,mecenat,adresse&limit=1', { headers: h })).json();
+    if (!row) { res.status(404).json({ error: 'Espace introuvable.', debug: (pr && pr.message) ? pr.message : 'aucune ligne' }); return; }
+    const pf = await (await fetch(url + '/rest/v1/profiles?id=eq.' + encodeURIComponent(row.user_id) + '&select=*&limit=1', { headers: h })).json();
     const p = Array.isArray(pf) ? pf[0] : {};
     const offres = Array.isArray(p.offres) ? p.offres : [];
     const off = offres.find(o => o.nom === row.pack);
