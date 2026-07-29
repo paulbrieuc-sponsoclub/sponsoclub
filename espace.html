@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Espace partenaire</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<style>
+  :root{--accent:#3b4cd8;--sec:#e0b400;--bg:#f5f6f8;--surface:#fff;--text:#1a1d21;--muted:#6b7280;--faint:#9ca3af;--border:#e8eaed;--green:#159169;--greenbg:#e2f4ee;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-size:15px;line-height:1.5}
+  .hero{background:linear-gradient(135deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#000));color:#fff;padding:40px 24px 54px;text-align:center;position:relative}
+  .hero .logo{width:72px;height:72px;border-radius:16px;background:#fff;object-fit:contain;padding:6px;margin:0 auto 16px;display:block;box-shadow:0 6px 20px rgba(0,0,0,.18)}
+  .hero .logoph{width:72px;height:72px;border-radius:16px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 16px}
+  .hero .eyebrow{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.85;margin-bottom:8px}
+  .hero h1{font-size:26px;font-weight:700;letter-spacing:-.02em}
+  .hero .sub{font-size:15px;opacity:.9;margin-top:8px}
+  .wrap{max-width:760px;margin:-34px auto 40px;padding:0 18px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:18px;box-shadow:0 4px 22px rgba(16,24,40,.05)}
+  .card h2{font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+  .packrow{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px}
+  .pack{font-size:22px;font-weight:700}
+  .amount{font-size:22px;font-weight:700;color:var(--accent)}
+  .defisc{margin-top:6px;font-size:13.5px;color:var(--green);background:var(--greenbg);padding:8px 12px;border-radius:9px;display:inline-flex;align-items:center;gap:7px}
+  .cp{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);font-size:14.5px}
+  .cp:last-child{border-bottom:none}
+  .cp .ico{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0}
+  .cp .ok{background:var(--greenbg);color:var(--green)}
+  .cp .wait{background:#f0f2f5;color:var(--faint)}
+  .cp .done{color:var(--muted)}
+  .tag{margin-left:auto;font-size:11.5px;padding:3px 9px;border-radius:20px;background:#f0f2f5;color:var(--muted);white-space:nowrap}
+  .tag.ok{background:var(--greenbg);color:var(--green)}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .stat{text-align:center;background:#f8f9fb;border-radius:12px;padding:16px 8px}
+  .stat .v{font-size:24px;font-weight:700;color:var(--accent)}
+  .stat .l{font-size:12px;color:var(--muted);margin-top:3px}
+  .impact{background:linear-gradient(135deg,color-mix(in srgb,var(--sec) 16%,#fff),#fff);border:1px solid color-mix(in srgb,var(--sec) 40%,#fff)}
+  .impact .big{font-size:30px;font-weight:800;color:var(--text);letter-spacing:-.02em}
+  .impact .note{font-size:12.5px;color:var(--muted);margin-top:8px}
+  .prog{height:8px;border-radius:6px;background:#eceef2;overflow:hidden;margin:14px 0 6px}
+  .prog>i{display:block;height:100%;background:var(--green);border-radius:6px}
+  .progtxt{font-size:13px;color:var(--muted)}
+  .foot{text-align:center;font-size:12.5px;color:var(--faint);padding:8px 0 30px}
+  .foot a{color:var(--faint)}
+  .center{text-align:center}
+  .spin{width:26px;height:26px;border:3px solid #d5d8de;border-top-color:var(--accent);border-radius:50%;display:inline-block;animation:sp .7s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .err{max-width:460px;margin:14vh auto;text-align:center;padding:0 24px;color:var(--muted)}
+  .err i{font-size:44px;color:var(--faint)}
+  .err h1{font-size:20px;color:var(--text);margin:14px 0 8px}
+  @media(max-width:520px){.stats{grid-template-columns:1fr;gap:8px}.hero h1{font-size:22px}}
+</style>
+</head>
+<body>
+<div id="app"><div class="center" style="padding:20vh 0"><span class="spin"></span></div></div>
+<script>
+const $=id=>document.getElementById(id);
+function esc(s){return (s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function nb(n){return (n||0).toLocaleString("fr-FR");}
+function shade(hex){try{const c=hex.replace('#','');const r=parseInt(c.slice(0,2),16),g=parseInt(c.slice(2,4),16),b=parseInt(c.slice(4,6),16);return `rgb(${r*.55|0},${g*.55|0},${b*.55|0})`;}catch(e){return hex;}}
+async function load(){
+  const token=(location.hash||"").replace(/^#/,"").trim();
+  if(!token){return fail("Lien incomplet","Ce lien ne contient pas d'identifiant d'espace.");}
+  try{
+    const r=await fetch("/api/espace?token="+encodeURIComponent(token));
+    const j=await r.json();
+    if(!r.ok||j.error)throw new Error(j.error||"Erreur");
+    render(j);
+  }catch(e){fail("Espace introuvable","Ce lien a peut-être expiré ou n'est plus valide.");}
+}
+function fail(t,m){$("app").innerHTML=`<div class="err"><i class="ti ti-link-off"></i><h1>${esc(t)}</h1><p>${esc(m)}</p></div>`;}
+function render(d){
+  const c=d.club,s=d.sponsor,cps=d.contreparties||[];
+  document.documentElement.style.setProperty("--accent",c.primary);
+  document.documentElement.style.setProperty("--sec",c.secondary);
+  document.title="Espace partenaire · "+c.nom;
+  const logo=c.logo?`<img class="logo" src="${c.logo}" alt="">`:`<div class="logoph"><i class="ti ti-trophy"></i></div>`;
+  const done=cps.filter(x=>x.done).length;
+  const pct=cps.length?Math.round(done/cps.length*100):0;
+  // Estimation de visibilité sur une saison (indicative, non garantie)
+  const matchs=15;
+  const vueStade=(c.spectateurs||0)*matchs;
+  const vueRes=Math.round((c.reseaux||0)*0.4*20); // ~20 posts, portée ~40%
+  const vueFoyers=(c.licencies||0)*2; // entourage licenciés
+  const total=vueStade+vueRes+vueFoyers;
+  const defisc=(c.mecenat&&s.montant)?`<div class="defisc"><i class="ti ti-discount"></i> Après réduction d'impôt (mécénat −60 %), coût réel : <b>&nbsp;${nb(Math.round(s.montant*0.4))} €</b></div>`:"";
+  const statusTag = s.regle?`<span class="tag ok"><i class="ti ti-check"></i> Réglé</span>`:(s.signe?`<span class="tag ok"><i class="ti ti-writing-sign"></i> Contrat signé</span>`:`<span class="tag">Partenariat en cours</span>`);
+  $("app").innerHTML=`
+  <div class="hero">
+    ${logo}
+    <div class="eyebrow">Espace partenaire</div>
+    <h1>${esc(c.nom)}</h1>
+    <div class="sub">Merci à <b>${esc(s.name)}</b> pour son soutien${c.sport?` au ${esc(c.sport.toLowerCase())}`:""} ${statusTag?"":""}</div>
+  </div>
+  <div class="wrap">
+    <div class="card">
+      <h2><i class="ti ti-award"></i> Votre partenariat</h2>
+      <div class="packrow">
+        <div><div class="pack">Formule ${esc(s.pack||"—")}</div><div style="margin-top:6px">${statusTag}</div></div>
+        ${s.montant?`<div class="amount">${nb(s.montant)} €<span style="font-size:13px;color:var(--muted);font-weight:500"> / saison</span></div>`:""}
+      </div>
+      ${defisc}
+    </div>
+
+    <div class="card">
+      <h2><i class="ti ti-checklist"></i> Vos contreparties</h2>
+      ${cps.length?`
+        <div class="prog"><i style="width:${pct}%"></i></div>
+        <div class="progtxt">${done} / ${cps.length} livrées${pct===100?" — tout est en place ✅":""}</div>
+        <div style="margin-top:8px">${cps.map(x=>`<div class="cp"><span class="ico ${x.done?'ok':'wait'}"><i class="ti ${x.done?'ti-check':'ti-clock'}"></i></span><span class="${x.done?'done':''}">${esc(x.label)}</span><span class="tag ${x.done?'ok':''}">${x.done?'Livré':'À venir'}</span></div>`).join("")}</div>
+      `:`<p style="color:var(--muted)">Les contreparties de votre formule seront détaillées ici.</p>`}
+    </div>
+
+    <div class="card impact">
+      <h2><i class="ti ti-trending-up"></i> Votre visibilité sur la saison</h2>
+      <div class="big">≈ ${nb(total)} contacts</div>
+      <div class="stats" style="margin-top:16px">
+        <div class="stat"><div class="v">${nb(vueStade)}</div><div class="l">vues au stade<br>(${nb(c.spectateurs)}/match × ${matchs})</div></div>
+        <div class="stat"><div class="v">${nb(vueRes)}</div><div class="l">portée réseaux<br>(${nb(c.reseaux)} abonnés)</div></div>
+        <div class="stat"><div class="v">${nb(vueFoyers)}</div><div class="l">entourage<br>${nb(c.licencies)} licenciés</div></div>
+      </div>
+      <div class="note">Estimation indicative de visibilité sur une saison (panneau, tenues, relais réseaux). Ce n'est pas une garantie de chiffre d'affaires.</div>
+    </div>
+
+    <div class="foot">Espace généré par <a href="https://sponsoclub.fr" target="_blank">Sponsoclub</a> pour ${esc(c.nom)}.</div>
+  </div>`;
+}
+load();
+window.addEventListener("hashchange",load);
+</script>
+</body>
+</html>
