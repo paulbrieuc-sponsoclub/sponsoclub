@@ -127,6 +127,7 @@
           <span class="muted" style="padding-bottom:9px">L'appli se met aux couleurs du club</span>
         </div>
       </div>
+      <label class="cp" style="max-width:560px;margin-bottom:16px"><input type="checkbox" id="p-mecenat" checked><span>Club éligible au mécénat — les sponsors bénéficient d'une <b>réduction d'impôt de 60 %</b> sur leur don (association d'intérêt général)</span></label>
       <div class="grid">
         <div><label>Nom du club</label><input id="nom"></div>
         <div><label>Adresse du stade</label><input id="adr"></div>
@@ -213,7 +214,7 @@ const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
 const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
-let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null;
+let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
 const DEFAULT_OFFRES=[
   {nom:"Bronze",prix:300,contreparties:["Logo sur le site du club","4 posts sur les réseaux / an","Citation dans la newsletter","Mention au micro les jours de match","Logo sur l'affiche de la saison"]},
   {nom:"Argent",prix:800,contreparties:["Tout le pack Bronze","Panneau publicitaire au stade","Logo sur le short","12 posts sur les réseaux","Invitation VIP à un match"]},
@@ -259,7 +260,7 @@ async function loadProfile(){
   const {data}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
   if(data){ $("nom").value=data.club_nom||""; $("adr").value=data.adresse||""; $("sport").value=data.sport||"Rugby";
     $("lic").value=data.licencies||240; $("spec").value=data.spectateurs||600; $("res").value=data.reseaux||3200;
-    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null;
+    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
     applyTheme(); updateTopLogo(); updateTopName(); showOffresView();
@@ -272,7 +273,8 @@ function editProfile(){$("profile-summary").style.display="none";$("profile-edit
 async function saveProfile(){
   const row={id:user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
     licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,
-    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,updated_at:new Date().toISOString()};
+    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,mecenat:($("p-mecenat")?$("p-mecenat").checked:true),updated_at:new Date().toISOString()};
+  clubMecenat=row.mecenat;
   const {error}=await sb.from("profiles").upsert(row);
   $("status").innerHTML=error?('<span style="color:#a12">Erreur: '+error.message+'</span>'):'<i class="ti ti-circle-check" style="color:var(--green)"></i> Profil enregistré.';
   if(!error)showSummary();
@@ -370,12 +372,14 @@ function renderResults(){
 function goPage(d){const pages=Math.ceil(filtered.length/PAGE);curPage=Math.min(pages,Math.max(1,curPage+d));renderResults();$("results").scrollIntoView({behavior:"smooth",block:"start"});}
 function dossier(i){
   const p=filtered[i];const c={nom:$("nom").value||"votre club",lic:+$("lic").value||0,spec:+$("spec").value||0,res:+$("res").value||0};
-  const email=`Objet : ${p.name} sur les maillots du ${c.nom} ?\n\nBonjour,\n\nJe suis en charge des partenariats du ${c.nom} — ${c.lic} licenciés et environ ${c.spec} spectateurs par match, beaucoup de familles installées à quelques minutes de chez vous.\n\nNous cherchons des partenaires locaux pour la saison. En échange d'un soutien, votre enseigne serait visible auprès de ce public : panneau au stade, logo sur nos tenues, relais réseaux (${c.res} abonnés). Trois formules, de 300 à 1 500 €.\n\nAuriez-vous 15 minutes cette semaine ?\n\nBien à vous,\n${c.nom}`;
+  const offs=(clubOffres||DEFAULT_OFFRES);const prices=offs.map(o=>+o.prix||0).filter(Boolean);
+  const range=prices.length?(Math.min(...prices).toLocaleString('fr-FR')+" à "+Math.max(...prices).toLocaleString('fr-FR')+" €"):"plusieurs formules";
+  const defisc=clubMecenat?"\n\nEt grâce au mécénat, votre soutien ouvre droit à une réduction d'impôt de 60 % : un don de 1 000 € ne vous coûte réellement que 400 €.":"";
+  const email=`Objet : ${p.name}, partenaire du ${c.nom} ?\n\nBonjour,\n\nJe suis en charge des partenariats du ${c.nom} — ${c.lic} licenciés et environ ${c.spec} spectateurs par match, beaucoup de familles installées à quelques minutes de chez vous.\n\nNous cherchons des partenaires locaux pour la saison. En échange d'un soutien, votre enseigne serait visible auprès de ce public : panneau au stade, logo sur nos tenues, relais réseaux (${c.res} abonnés). Nos formules vont de ${range}.${defisc}\n\nAuriez-vous 15 minutes cette semaine ?\n\nBien à vous,\n${c.nom}`;
   $("dlg-title").textContent="Dossier · "+p.name;
+  const packsHtml=offs.slice(0,4).map(o=>`<div class="pack"><div class="tier">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="price">${(+o.prix||0).toLocaleString('fr-FR')} €</div>${(clubMecenat&&o.prix)?`<div style="font-size:11px;color:var(--green)">soit ${Math.round(o.prix*0.4).toLocaleString('fr-FR')} € après défisc</div>`:""}<div class="muted" style="font-size:11px;margin-top:4px">${(o.contreparties||[]).slice(0,2).join(' · ')}</div></div>`).join("");
   $("dlg-body").innerHTML=`<p class="muted" style="margin-bottom:10px">${p.cl}${p.ville?" · "+p.ville:""}</p>
-    <div class="packs"><div class="pack"><div class="tier">Bronze</div><div class="price">300 €</div><div class="muted">logo site · 4 posts/an</div></div>
-    <div class="pack reco"><div class="tier">Argent</div><div class="price">800 €</div><div class="muted">+ panneau · logo short · 12 posts</div></div>
-    <div class="pack"><div class="tier">Or</div><div class="price">1 500 €</div><div class="muted">+ logo maillot · match parrainé</div></div></div>
+    <div class="packs" style="grid-template-columns:repeat(auto-fit,minmax(120px,1fr))">${packsHtml}</div>
     <label style="margin-bottom:6px">Email d'approche</label><pre id="mail">${email.replace(/</g,"&lt;")}</pre>
     <div style="display:flex;gap:8px;margin-top:12px">
       <button onclick="aiEmail(${i},this)"><i class="ti ti-sparkles"></i> Rédiger avec l'IA</button>
@@ -430,7 +434,7 @@ function removeOffre(i){clubOffres.splice(i,1);renderOffresEditor();}
 function addCp(i){clubOffres[i].contreparties.push("");renderOffresEditor();}
 function removeCp(i,j){clubOffres[i].contreparties.splice(j,1);renderOffresEditor();}
 async function saveOffres(btn){if(!user)return;btn.disabled=true;const {error}=await sb.from("profiles").upsert({id:user.id,offres:clubOffres,updated_at:new Date().toISOString()});btn.disabled=false;if(error){alert("Erreur: "+error.message);return;}showOffresView();}
-function renderOffresView(){const box=$("offres-view");if(!box)return;const list=clubOffres||DEFAULT_OFFRES;box.innerHTML=list.map(o=>`<div class="offre-view"><div class="onom">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="price">${(o.prix||0).toLocaleString('fr-FR')} €<span style="font-size:12px;color:var(--faint);font-weight:400"> /an</span></div>${(o.contreparties||[]).map(c=>`<div class="cp"><i class="ti ti-check"></i> ${(c||'').replace(/</g,'&lt;')}</div>`).join("")}</div>`).join("");}
+function renderOffresView(){const box=$("offres-view");if(!box)return;const list=clubOffres||DEFAULT_OFFRES;box.innerHTML=list.map(o=>`<div class="offre-view"><div class="onom">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="price">${(o.prix||0).toLocaleString('fr-FR')} €<span style="font-size:12px;color:var(--faint);font-weight:400"> /an</span></div>${(clubMecenat&&o.prix)?`<div style="font-size:12px;color:var(--green);margin:-8px 0 10px"><i class="ti ti-discount"></i> Coût réel : ${Math.round(o.prix*0.4).toLocaleString('fr-FR')} € après défisc (−60%)</div>`:""}${(o.contreparties||[]).map(c=>`<div class="cp"><i class="ti ti-check"></i> ${(c||'').replace(/</g,'&lt;')}</div>`).join("")}</div>`).join("");}
 function showOffresView(){renderOffresView();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="grid";if(e)e.style.display="none";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="editOffres()"><i class="ti ti-edit"></i> Modifier les offres</button>';}
 function editOffres(){renderOffresEditor();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="none";if(e)e.style.display="block";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer</button>';}
 function switchTab(name){document.querySelectorAll(".tabpage").forEach(el=>{el.style.display=el.classList.contains("tab-"+name)?"":"none";});document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));window.scrollTo({top:0,behavior:"smooth"});}
@@ -473,8 +477,12 @@ function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSave
       <div style="flex:1;min-width:220px"><label>Lien de paiement (Stripe, HelloAsso, virement…)</label><input id="sp-paylink" value="${(p.payment_link||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
       <button id="sp-pay-btn" onclick="togglePaid(${id},this)">${p.payment_status==='Réglé'?'<i class="ti ti-rotate"></i> Marquer non réglé':'<i class="ti ti-check"></i> Marquer payé'}</button>
     </div>
-    <div><span class="pill ${p.payment_status==='Réglé'?'green':'amber'}" id="sp-pay-status">${p.payment_status||'Non réglé'}${p.paid_at?(' · '+new Date(p.paid_at).toLocaleDateString('fr-FR')):''}</span>${p.payment_link?' <a href="'+p.payment_link+'" target="_blank" style="color:var(--accenttx);font-size:13px;margin-left:8px"><i class="ti ti-external-link"></i> ouvrir le lien</a>':''}</div>`;
-  renderCps(pack);
+    <div><span class="pill ${p.payment_status==='Réglé'?'green':'amber'}" id="sp-pay-status">${p.payment_status||'Non réglé'}${p.paid_at?(' · '+new Date(p.paid_at).toLocaleDateString('fr-FR')):''}</span>${p.payment_link?' <a href="'+p.payment_link+'" target="_blank" style="color:var(--accenttx);font-size:13px;margin-left:8px"><i class="ti ti-external-link"></i> ouvrir le lien</a>':''}</div>
+    <div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>
+    <label style="font-weight:500;display:block;margin-bottom:6px"><i class="ti ti-share"></i> Espace partenaire (à partager)</label>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">Une page publique aux couleurs du club — formule, contreparties livrées et visibilité estimée. À envoyer au sponsor comme preuve de ce qu'il reçoit.</p>
+    <div id="sp-share"></div>`;
+  renderCps(pack);renderShare(id);
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
@@ -578,7 +586,7 @@ async function aiGenerate(type,data){
 async function aiEmail(i,btn){const p=filtered[i];const el=document.getElementById("mail");const old=el.innerText;const bo=btn?btn.innerHTML:"";
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Rédaction…';}
   el.innerHTML='<span class="spin"></span> Rédaction par l\'IA…';
-  try{const t=await aiGenerate("email",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,categorie:p.cl});el.innerText=t;}
+  try{const t=await aiGenerate("email",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,categorie:p.cl,mecenat:clubMecenat});el.innerText=t;}
   catch(e){el.innerText=old;alert("IA indisponible : "+e.message);}
   finally{if(btn){btn.disabled=false;btn.innerHTML=bo;}}}
 async function genContract(id,btn){const p=pipeData.find(x=>x.id===id);const box=document.getElementById("sp-contract");const bo=btn?btn.innerHTML:"";
@@ -586,13 +594,13 @@ async function genContract(id,btn){const p=pipeData.find(x=>x.id===id);const box
   box.innerHTML='<div style="padding:8px 0"><span class="spin"></span> Rédaction du contrat par l\'IA…</div>';
   const pack=$("sp-pack").value;
   const cps=contrepartiesFor(pack).filter(c=>{const cb=document.querySelector('#sp-cps input[data-cp="'+c+'"]');return cb&&cb.checked;});
-  try{const t=await aiGenerate("contrat",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,montant:$("sp-montant").value,contreparties:cps.length?cps:contrepartiesFor(pack)});
+  try{const t=await aiGenerate("contrat",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,montant:$("sp-montant").value,contreparties:cps.length?cps:contrepartiesFor(pack),mecenat:clubMecenat});
     await sb.from("pipeline").update({contrat:t}).eq("id",id);const pp=pipeData.find(x=>x.id===id);if(pp)pp.contrat=t;
     renderContractBox(t,id,false);}
   catch(e){box.innerHTML='<div style="color:#a12;font-size:13px">IA indisponible : '+e.message+'</div>';}
   finally{if(btn){btn.disabled=false;btn.innerHTML=bo;}}}
 async function aiEmailFiche(id,btn){const p=pipeData.find(x=>x.id===id);const bo=btn?btn.innerHTML:"";if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Rédaction…';}
-  try{const t=await aiGenerate("email",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,categorie:p.categorie});
+  try{const t=await aiGenerate("email",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,categorie:p.categorie,mecenat:clubMecenat});
     let subj="",body=t;const mm=t.match(/objet\s*:\s*(.+)/i);if(mm){subj=mm[1].split("\n")[0].trim();body=t.replace(/objet\s*:.*(\r?\n)?/i,"").trim();}
     if(subj)$("sp-subject").value=subj;$("sp-body").value=body;}
   catch(e){alert("IA indisponible : "+e.message);}
@@ -614,6 +622,17 @@ function dlDoc(taId,name){const ta=document.getElementById(taId);const esc=ta.va
 function renderContractBox(text,id,signed){document.getElementById("sp-contract").innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${(text||"").replace(/</g,"&lt;")}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button><button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button><span id="ct-status" style="color:var(--green);font-size:12px"></span></div><label class="cp" style="max-width:240px;margin-top:10px"><input type="checkbox" ${signed?"checked":""} onchange="setSigned(${id},this.checked)"><span>Contrat signé</span></label>`;}
 async function setSigned(id,val){const {error}=await sb.from("pipeline").update({contrat_signe:val}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat_signe=val;if(error)alert("Erreur: "+error.message);}
 async function saveContract(id){const ta=document.getElementById("ct-out");const {error}=await sb.from("pipeline").update({contrat:ta.value}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat=ta.value;const st=document.getElementById("ct-status");if(st){if(error){st.style.color="#a12";st.textContent="Erreur : "+error.message;}else{st.style.color="var(--green)";st.textContent="Enregistré ✓";}}}
+function spaceUrl(tok){return location.origin+"/espace.html#"+tok;}
+function renderShare(id){const box=document.getElementById("sp-share");if(!box)return;const p=pipeData.find(x=>x.id===id);
+  if(p&&p.share_token){const u=spaceUrl(p.share_token);
+    box.innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input readonly value="${u}" onclick="this.select()" style="flex:1;min-width:220px"><button class="primary" onclick="navigator.clipboard.writeText('${u}');this.innerHTML='<i class=\\'ti ti-check\\'></i> Copié'"><i class="ti ti-copy"></i> Copier</button><a href="${u}" target="_blank"><button type="button"><i class="ti ti-external-link"></i> Ouvrir</button></a></div>`;
+  }else{box.innerHTML=`<button onclick="shareSpace(${id},this)"><i class="ti ti-link"></i> Générer le lien partageable</button>`;}
+}
+async function shareSpace(id,btn){const tok=(Date.now().toString(36)+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,8));
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Génération…';}
+  const {error}=await sb.from("pipeline").update({share_token:tok}).eq("id",id);
+  if(error){alert("Erreur: "+error.message);if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i> Générer le lien partageable';}return;}
+  const p=pipeData.find(x=>x.id===id);if(p)p.share_token=tok;renderShare(id);}
 function demo(){return [
   {name:"Garage Central",cl:"Automobile",ic:"ti-car",dist:1.2,sc:4,ville:"Villeneuve"},
   {name:"Boulangerie Moreau",cl:"Alimentaire",ic:"ti-bread",dist:0.6,sc:4,ville:"Villeneuve"},
