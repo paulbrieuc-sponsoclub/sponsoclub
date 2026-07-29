@@ -86,12 +86,21 @@
 <div id="app" style="display:none">
   <div class="top">
     <div class="logo" id="topLogo"><i class="ti ti-trophy"></i></div>
-    <h1>Sponsoclub</h1>
+    <h1 id="appTitle">Sponsoclub</h1>
     <div class="me"><span id="who"></span><button onclick="logout()" style="color:#fff;border-color:#333;background:#1d2029"><i class="ti ti-logout"></i> Déconnexion</button></div>
   </div>
   <div class="wrap">
     <div id="kpis"></div>
     <div class="card">
+      <div id="profile-summary" style="display:none">
+        <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+          <img id="sum-logo" alt="" style="width:48px;height:48px;border-radius:11px;object-fit:contain;background:#fff;padding:3px;border:1px solid var(--border);display:none">
+          <div style="flex:1;min-width:160px"><div id="sum-name" style="font-weight:600;font-size:16px"></div><div id="sum-sub" class="muted" style="font-size:13px"></div></div>
+          <button onclick="editProfile()"><i class="ti ti-edit"></i> Modifier le profil</button>
+          <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
+        </div>
+      </div>
+      <div id="profile-edit">
       <h2>Profil du club</h2>
       <div style="display:flex;align-items:center;gap:22px;margin-bottom:16px;flex-wrap:wrap">
         <div style="display:flex;align-items:center;gap:12px">
@@ -117,6 +126,7 @@
           <button onclick="saveProfile()"><i class="ti ti-device-floppy"></i> Enregistrer</button>
           <button class="primary" style="flex:1;justify-content:center" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
         </div>
+      </div>
       </div>
       <div id="status" class="muted" style="margin-top:12px"></div>
     </div>
@@ -194,15 +204,20 @@ async function loadProfile(){
     clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400";
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
-    applyTheme(); updateTopLogo();
-  }
+    applyTheme(); updateTopLogo(); updateTopName();
+    if(data.club_nom){showSummary();}else{editProfile();}
+  } else { editProfile(); }
 }
+function updateTopName(){const t=$("appTitle");if(t)t.textContent=$("nom").value||"Sponsoclub";}
+function showSummary(){$("sum-name").textContent=$("nom").value||"Mon club";$("sum-sub").textContent=((+$("lic").value||0)+" licenciés")+($("adr").value?(" · "+$("adr").value):"");if(clubLogo){$("sum-logo").src=clubLogo;$("sum-logo").style.display="block";}else{$("sum-logo").style.display="none";}$("profile-summary").style.display="block";$("profile-edit").style.display="none";updateTopName();}
+function editProfile(){$("profile-summary").style.display="none";$("profile-edit").style.display="block";}
 async function saveProfile(){
   const row={id:user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
     licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,
     logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,updated_at:new Date().toISOString()};
   const {error}=await sb.from("profiles").upsert(row);
   $("status").innerHTML=error?('<span style="color:#a12">Erreur: '+error.message+'</span>'):'<i class="ti ti-circle-check" style="color:var(--green)"></i> Profil enregistré.';
+  if(!error)showSummary();
 }
 function applyTheme(){document.documentElement.style.setProperty("--accent",clubPrimary);document.documentElement.style.setProperty("--accenttx",clubPrimary);}
 function setTheme(which,val){if(which==="primary")clubPrimary=val;else clubSecondary=val;applyTheme();updateTopLogo();}
