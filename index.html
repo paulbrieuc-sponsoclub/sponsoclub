@@ -85,7 +85,7 @@
 <!-- APPLICATION -->
 <div id="app" style="display:none">
   <div class="top">
-    <div class="logo"><i class="ti ti-trophy"></i></div>
+    <div class="logo" id="topLogo"><i class="ti ti-trophy"></i></div>
     <h1>Sponsoclub</h1>
     <div class="me"><span id="who"></span><button onclick="logout()" style="color:#fff;border-color:#333;background:#1d2029"><i class="ti ti-logout"></i> Déconnexion</button></div>
   </div>
@@ -93,6 +93,18 @@
     <div id="kpis"></div>
     <div class="card">
       <h2>Profil du club</h2>
+      <div style="display:flex;align-items:center;gap:22px;margin-bottom:16px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:12px">
+          <img id="logo-preview" alt="" style="width:56px;height:56px;border-radius:12px;object-fit:cover;border:1px solid var(--border);display:none">
+          <div id="logo-ph" style="width:56px;height:56px;border-radius:12px;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:22px"><i class="ti ti-photo"></i></div>
+          <div><label>Blason du club</label><input type="file" id="logo-file" accept="image/*" onchange="onLogo(event)" style="font-size:12px;border:none;padding:0"></div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:16px">
+          <div><label>Couleur principale</label><input type="color" id="col-primary" value="#3b4cd8" onchange="setTheme('primary',this.value)" style="width:52px;height:38px;padding:2px"></div>
+          <div><label>Couleur secondaire</label><input type="color" id="col-secondary" value="#e0b400" onchange="setTheme('secondary',this.value)" style="width:52px;height:38px;padding:2px"></div>
+          <span class="muted" style="padding-bottom:9px">L'appli se met aux couleurs du club</span>
+        </div>
+      </div>
       <div class="grid">
         <div><label>Nom du club</label><input id="nom"></div>
         <div><label>Adresse du stade</label><input id="adr"></div>
@@ -139,6 +151,7 @@ const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
 const PAGE=10;
 let pipeData=[], spSaved={};
+let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400";
 
 if(SUPABASE_ANON_KEY==="COLLE_ICI_TA_CLE_ANON"){
   $("auth-msg").className="msg err";
@@ -177,14 +190,24 @@ async function showApp(){
 async function loadProfile(){
   const {data}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
   if(data){ $("nom").value=data.club_nom||""; $("adr").value=data.adresse||""; $("sport").value=data.sport||"Rugby";
-    $("lic").value=data.licencies||240; $("spec").value=data.spectateurs||600; $("res").value=data.reseaux||3200; }
+    $("lic").value=data.licencies||240; $("spec").value=data.spectateurs||600; $("res").value=data.reseaux||3200;
+    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400";
+    $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
+    if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
+    applyTheme(); updateTopLogo();
+  }
 }
 async function saveProfile(){
   const row={id:user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
-    licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,updated_at:new Date().toISOString()};
+    licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,
+    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,updated_at:new Date().toISOString()};
   const {error}=await sb.from("profiles").upsert(row);
   $("status").innerHTML=error?('<span style="color:#a12">Erreur: '+error.message+'</span>'):'<i class="ti ti-circle-check" style="color:var(--green)"></i> Profil enregistré.';
 }
+function applyTheme(){document.documentElement.style.setProperty("--accent",clubPrimary);document.documentElement.style.setProperty("--accenttx",clubPrimary);}
+function setTheme(which,val){if(which==="primary")clubPrimary=val;else clubSecondary=val;applyTheme();updateTopLogo();}
+function updateTopLogo(){const el=$("topLogo");if(!el)return;if(clubLogo){el.innerHTML='<img src="'+clubLogo+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:8px">';el.style.background="transparent";}else{el.innerHTML='<i class="ti ti-trophy"></i>';el.style.background=clubPrimary;}}
+function onLogo(e){const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=ev=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");const m=180,s=Math.min(1,m/Math.max(img.width,img.height));c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);clubLogo=c.toDataURL("image/png");$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";updateTopLogo();};img.src=ev.target.result;};rd.readAsDataURL(f);}
 
 // ---- Détection (données publiques réelles) ----
 function cat(naf){const d=(naf||"").slice(0,2);const m={
