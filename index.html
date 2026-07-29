@@ -283,7 +283,9 @@ function updateTopLogo(){const el=$("topLogo");if(!el)return;if(clubLogo){el.inn
 function onLogo(e){const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=ev=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");const m=180,s=Math.min(1,m/Math.max(img.width,img.height));c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);clubLogo=c.toDataURL("image/png");$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";updateTopLogo();};img.src=ev.target.result;};rd.readAsDataURL(f);}
 
 // ---- Détection (données publiques réelles) ----
-function cat(naf){const d=(naf||"").slice(0,2);const n=parseInt(d,10);const m={
+function cat(naf){const d=(naf||"").slice(0,2);const n=parseInt(d,10);
+  if(/^47\.11|^47\.19/.test(naf||""))return["Supermarché / hypermarché","ti-shopping-cart",3];
+  const m={
   "56":["Restauration / café / bar","ti-tools-kitchen-2",3],
   "47":["Commerce de détail","ti-building-store",3],
   "10":["Boulangerie / alimentaire","ti-bread",3],
@@ -316,8 +318,8 @@ function vign(p){if(p.photo)return `<img src="${p.photo}" alt="" style="width:44
 async function geocode(q){const r=await fetch("https://api-adresse.data.gouv.fr/search/?limit=1&q="+encodeURIComponent(q));if(!r.ok)throw new Error("geo");const d=await r.json();if(!d.features||!d.features.length)throw new Error("adresse introuvable");const f=d.features[0];return{lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1],label:f.properties.label};}
 async function nearby(lat,lon,rad){let all=[];let ok=false;for(let p=1;p<=16;p++){const r=await fetch(`https://recherche-entreprises.api.gouv.fr/near_point?lat=${lat}&long=${lon}&radius=${rad}&per_page=25&page=${p}`);if(!r.ok){if(p===1)throw new Error("entreprises");break;}ok=true;const d=await r.json();const res=d.results||[];all=all.concat(res);if(res.length<25)break;}if(!ok)throw new Error("entreprises");return all;}
 async function overpass(lat,lon,radKm){
-  const m=Math.round(Math.min(radKm,6)*1000);
-  const q=`[out:json][timeout:20];(node(around:${m},${lat},${lon})[shop];node(around:${m},${lat},${lon})[amenity~"restaurant|cafe|bar|pub|fast_food|pharmacy|fuel|bank"];);out center tags 250;`;
+  const m=Math.round(Math.min(radKm,15)*1000);
+  const q=`[out:json][timeout:25];(nwr(around:${m},${lat},${lon})[shop];nwr(around:${m},${lat},${lon})[amenity~"restaurant|cafe|bar|pub|fast_food|pharmacy|fuel|bank|marketplace|car_rental|cinema"];nwr(around:${m},${lat},${lon})[office];nwr(around:${m},${lat},${lon})[craft];);out center tags 600;`;
   const r=await fetch("https://overpass-api.de/api/interpreter?data="+encodeURIComponent(q));
   if(!r.ok)throw new Error("carte indisponible");
   const d=await r.json(); return d.elements||[];
@@ -328,10 +330,12 @@ function osmCat(t){const a=t.amenity,s=t.shop;
   const S={supermarket:["Supermarché","ti-shopping-cart",3],convenience:["Épicerie","ti-building-store",3],bakery:["Boulangerie","ti-bread",3],hairdresser:["Coiffeur","ti-cut",3],butcher:["Boucherie","ti-meat",3],car:["Automobile","ti-car",3],car_repair:["Garage","ti-car",3],clothes:["Vêtements","ti-shirt",3],florist:["Fleuriste","ti-building-store",2],optician:["Opticien","ti-building-store",2]};
   if(s&&S[s])return S[s];
   if(s)return["Commerce","ti-building-store",3];
-  return["Commerce local","ti-building-store",2];
+  if(t.office)return["Bureau / services","ti-briefcase",2];
+  if(t.craft)return["Artisan","ti-hammer",2];
+  return["Entreprise locale","ti-building",2];
 }
 function parseOsm(els,clat,clon){return (els||[]).map(e=>{const t=e.tags||{};const name=t.name;if(!name)return null;const la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);let dist=null;if(la!=null&&lo!=null)dist=hav(clat,clon,la,lo);const[cl,ic,sc]=osmCat(t);const photo=(t.image&&/^https?:\/\//.test(t.image))?t.image:null;const phone=t.phone||t["contact:phone"]||"";const website=t.website||t["contact:website"]||"";const email=t.email||t["contact:email"]||"";return{name:name,cl,ic,sc,dist,ville:t["addr:city"]||"",photo,phone,website,email,effectif:""};}).filter(x=>x);}
-function mergeDedupe(list){list.sort((a,b)=>b.sc-a.sc||((a.dist??1e9)-(b.dist??1e9)));const seen={},out=[];for(const x of list){const k=(x.name||"").toLowerCase().trim();if(!k||seen[k])continue;seen[k]=1;out.push(x);}return out.slice(0,500);}
+function mergeDedupe(list){list.sort((a,b)=>((a.dist??1e9)-(b.dist??1e9))||b.sc-a.sc);const seen={},out=[];for(const x of list){const k=(x.name||"").toLowerCase().trim();if(!k||seen[k])continue;seen[k]=1;out.push(x);}return out.slice(0,500);}
 function normalize(list,clat,clon){const seen={};return list.map(e=>{const et=(e.matching_etablissements&&e.matching_etablissements[0])||e.siege||{};if(et.etat_administratif&&et.etat_administratif!=="A")return null;const name=e.nom_complet||et.nom_commercial||e.nom_raison_sociale||"Établissement";const naf=et.activite_principale||e.activite_principale||"";const [cl,ic,base]=cat(naf);const el=parseFloat(et.latitude),eo=parseFloat(et.longitude);let dist=null;if(!isNaN(el)&&!isNaN(eo))dist=hav(clat,clon,el,eo);let ville=et.libelle_commune||"";if(!ville&&et.adresse){const mm=et.adresse.match(/\d{5}\s+(.+)$/);if(mm)ville=mm[1].trim();}let sc=base;if(dist!=null){if(dist<1)sc++;else if(dist>4)sc--;}
     let disp=cn(name);const ens=(et.liste_enseignes&&et.liste_enseignes[0])||"";
     if(ens){disp=cn(ens);}
