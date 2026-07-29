@@ -127,6 +127,15 @@
           <button class="primary" style="flex:1;justify-content:center" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
         </div>
       </div>
+      <div style="margin-top:18px">
+        <label style="font-weight:500;display:block;margin-bottom:8px">Contreparties par pack <span class="muted" style="font-weight:400">(une par ligne)</span></label>
+        <div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px">
+          <div><label>Pack Bronze</label><textarea id="cp-bronze" style="width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6"></textarea></div>
+          <div><label>Pack Argent</label><textarea id="cp-argent" style="width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6"></textarea></div>
+          <div><label>Pack Or</label><textarea id="cp-or" style="width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6"></textarea></div>
+        </div>
+        <p class="muted" style="font-size:12px;margin-top:6px">Ces contreparties s'affichent dans la fiche de chaque sponsor selon son pack.</p>
+      </div>
       </div>
       <div id="status" class="muted" style="margin-top:12px"></div>
     </div>
@@ -176,7 +185,8 @@ const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
 const PAGE=10;
 let pipeData=[], spSaved={};
-let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400";
+let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubContreparties=null;
+const DEFAULT_CP={Bronze:["Logo sur le site","4 posts réseaux / an","Citation newsletter"],Argent:["Logo sur le site","Panneau au stade","Logo sur le short","12 posts réseaux","Invitation match VIP"],Or:["Logo sur le maillot","Panneau au stade","12 posts réseaux","Match parrainé à son nom","Invitation match VIP","Logo sur le site"]};
 
 if(SUPABASE_ANON_KEY==="COLLE_ICI_TA_CLE_ANON"){
   $("auth-msg").className="msg err";
@@ -216,20 +226,22 @@ async function loadProfile(){
   const {data}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
   if(data){ $("nom").value=data.club_nom||""; $("adr").value=data.adresse||""; $("sport").value=data.sport||"Rugby";
     $("lic").value=data.licencies||240; $("spec").value=data.spectateurs||600; $("res").value=data.reseaux||3200;
-    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400";
+    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubContreparties=data.contreparties_perso||null;
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
-    applyTheme(); updateTopLogo(); updateTopName();
+    applyTheme(); updateTopLogo(); updateTopName(); fillCpEditor();
     if(data.club_nom){showSummary();}else{editProfile();}
-  } else { editProfile(); }
+  } else { fillCpEditor(); editProfile(); }
 }
 function updateTopName(){const t=$("appTitle");if(t)t.textContent=$("nom").value||"Sponsoclub";}
 function showSummary(){$("sum-name").textContent=$("nom").value||"Mon club";$("sum-sub").textContent=((+$("lic").value||0)+" licenciés")+($("adr").value?(" · "+$("adr").value):"");if(clubLogo){$("sum-logo").src=clubLogo;$("sum-logo").style.display="block";}else{$("sum-logo").style.display="none";}$("profile-summary").style.display="block";$("profile-edit").style.display="none";updateTopName();}
 function editProfile(){$("profile-summary").style.display="none";$("profile-edit").style.display="block";}
 async function saveProfile(){
+  const parseCp=id=>{const el=document.getElementById(id);return el?el.value.split("\n").map(s=>s.trim()).filter(Boolean):[];};
+  clubContreparties={Bronze:parseCp("cp-bronze"),Argent:parseCp("cp-argent"),Or:parseCp("cp-or")};
   const row={id:user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
     licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,
-    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,updated_at:new Date().toISOString()};
+    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,contreparties_perso:clubContreparties,updated_at:new Date().toISOString()};
   const {error}=await sb.from("profiles").upsert(row);
   $("status").innerHTML=error?('<span style="color:#a12">Erreur: '+error.message+'</span>'):'<i class="ti ti-circle-check" style="color:var(--green)"></i> Profil enregistré.';
   if(!error)showSummary();
@@ -351,7 +363,8 @@ function renderKpis(){
   const cards=[["Sponsors signés",signes.length,"ti-heart-handshake"],["Argent généré",argent.toLocaleString("fr-FR")+" €","ti-cash"],["Dossiers en cours",encours,"ti-clock"],["Actions à mener",actions,"ti-checklist"]];
   $("kpis").innerHTML=cards.map(c=>`<div class="kpi"><div class="kpi-l"><i class="ti ${c[2]}"></i> ${c[0]}</div><div class="kpi-v">${c[1]}</div></div>`).join("");
 }
-function contrepartiesFor(pack){const b={Bronze:["Logo sur le site","4 posts réseaux / an","Citation newsletter"],Argent:["Logo sur le site","Panneau au stade","Logo sur le short","12 posts réseaux","Invitation match VIP"],Or:["Logo sur le maillot","Panneau au stade","12 posts réseaux","Match parrainé à son nom","Invitation match VIP","Logo sur le site"]};return b[pack]||b.Argent;}
+function contrepartiesFor(pack){if(clubContreparties&&Array.isArray(clubContreparties[pack])&&clubContreparties[pack].length)return clubContreparties[pack];return DEFAULT_CP[pack]||DEFAULT_CP.Argent;}
+function fillCpEditor(){["Bronze","Argent","Or"].forEach(p=>{const el=document.getElementById("cp-"+p.toLowerCase());if(el)el.value=((clubContreparties&&clubContreparties[p])||DEFAULT_CP[p]).join("\n");});}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
 function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
 function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const def={Bronze:300,Argent:800,Or:1500}[pack];const mt=$("sp-montant");if(def&&(!mt.value||mt.dataset.auto==="1")){mt.value=def;mt.dataset.auto="1";}}
