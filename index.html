@@ -242,7 +242,7 @@ function dossier(i){
     <div class="pack"><div class="tier">Or</div><div class="price">1 500 €</div><div class="muted">+ logo maillot · match parrainé</div></div></div>
     <label style="margin-bottom:6px">Email d'approche</label><pre id="mail">${email.replace(/</g,"&lt;")}</pre>
     <div style="display:flex;gap:8px;margin-top:12px">
-      <button onclick="aiEmail(${i})"><i class="ti ti-sparkles"></i> Rédiger avec l'IA</button>
+      <button onclick="aiEmail(${i},this)"><i class="ti ti-sparkles"></i> Rédiger avec l'IA</button>
       <button onclick="navigator.clipboard.writeText(document.getElementById('mail').innerText);this.innerHTML='<i class=\\'ti ti-check\\'></i> Copié'"><i class="ti ti-copy"></i> Copier</button>
       <button class="primary" onclick="addPipe(${i})"><i class="ti ti-plus"></i> Ajouter au pipeline</button>
     </div>`;
@@ -295,9 +295,10 @@ function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSave
     <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
     <label>Notes</label>
     <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
-    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="genContract(${id})"><i class="ti ti-file-text"></i> Générer le contrat (IA)</button><button onclick="document.getElementById('dlg').close()">Fermer</button></div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="genContract(${id},this)"><i class="ti ti-file-text"></i> Générer le contrat (IA)</button><button onclick="document.getElementById('dlg').close()">Fermer</button></div>
     <div id="sp-contract" style="margin-top:14px"></div>`;
   renderCps(pack);
+  if(p.contrat)renderContractBox(p.contrat,id);
   $("dlg").showModal();
 }
 async function saveSponsor(id){const cps={};document.querySelectorAll("#sp-cps input[type=checkbox]").forEach(cb=>{cps[cb.dataset.cp]=cb.checked;});
@@ -313,17 +314,25 @@ async function aiGenerate(type,data){
   if(!r.ok||j.error)throw new Error(j.error||("HTTP "+r.status));
   return j.text;
 }
-async function aiEmail(i){const p=prospects[i];const el=document.getElementById("mail");const old=el.innerText;el.innerHTML='<span class="spin"></span> Rédaction par l\'IA…';
+async function aiEmail(i,btn){const p=prospects[i];const el=document.getElementById("mail");const old=el.innerText;const bo=btn?btn.innerHTML:"";
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Rédaction…';}
+  el.innerHTML='<span class="spin"></span> Rédaction par l\'IA…';
   try{const t=await aiGenerate("email",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,categorie:p.cl});el.innerText=t;}
-  catch(e){el.innerText=old;alert("IA indisponible : "+e.message);}}
-async function genContract(id){const p=pipeData.find(x=>x.id===id);const box=document.getElementById("sp-contract");
+  catch(e){el.innerText=old;alert("IA indisponible : "+e.message);}
+  finally{if(btn){btn.disabled=false;btn.innerHTML=bo;}}}
+async function genContract(id,btn){const p=pipeData.find(x=>x.id===id);const box=document.getElementById("sp-contract");const bo=btn?btn.innerHTML:"";
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Rédaction…';}
   box.innerHTML='<div style="padding:8px 0"><span class="spin"></span> Rédaction du contrat par l\'IA…</div>';
   const pack=$("sp-pack").value;
   const cps=contrepartiesFor(pack).filter(c=>{const cb=document.querySelector('#sp-cps input[data-cp="'+c+'"]');return cb&&cb.checked;});
   try{const t=await aiGenerate("contrat",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,montant:$("sp-montant").value,contreparties:cps.length?cps:contrepartiesFor(pack)});
-    box.innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat généré (modifiable)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${t.replace(/</g,"&lt;")}</textarea><div style="margin-top:8px"><button onclick="dlTxt('ct-out','contrat-sponsoclub')"><i class="ti ti-download"></i> Télécharger le contrat</button></div>`;}
-  catch(e){box.innerHTML='<div style="color:#a12;font-size:13px">IA indisponible : '+e.message+'</div>';}}
-function dlTxt(taId,name){const ta=document.getElementById(taId);const blob=new Blob([ta.value],{type:"text/plain;charset=utf-8"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(name||"document")+".txt";document.body.appendChild(a);a.click();a.remove();}
+    await sb.from("pipeline").update({contrat:t}).eq("id",id);const pp=pipeData.find(x=>x.id===id);if(pp)pp.contrat=t;
+    renderContractBox(t,id);}
+  catch(e){box.innerHTML='<div style="color:#a12;font-size:13px">IA indisponible : '+e.message+'</div>';}
+  finally{if(btn){btn.disabled=false;btn.innerHTML=bo;}}}
+function dlDoc(taId,name){const ta=document.getElementById(taId);const esc=ta.value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+esc+'</body></html>';const blob=new Blob(["﻿",html],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(name||"document")+".doc";document.body.appendChild(a);a.click();a.remove();}
+function renderContractBox(text,id){document.getElementById("sp-contract").innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${(text||"").replace(/</g,"&lt;")}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button><button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button><span id="ct-status" style="color:var(--green);font-size:12px"></span></div>`;}
+async function saveContract(id){const ta=document.getElementById("ct-out");const {error}=await sb.from("pipeline").update({contrat:ta.value}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat=ta.value;const st=document.getElementById("ct-status");if(st){if(error){st.style.color="#a12";st.textContent="Erreur : "+error.message;}else{st.style.color="var(--green)";st.textContent="Enregistré ✓";}}}
 function demo(){return [
   {name:"Garage Central",cl:"Automobile",ic:"ti-car",dist:1.2,sc:4,ville:"Villeneuve"},
   {name:"Boulangerie Moreau",cl:"Alimentaire",ic:"ti-bread",dist:0.6,sc:4,ville:"Villeneuve"},
