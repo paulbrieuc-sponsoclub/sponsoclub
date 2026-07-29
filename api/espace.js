@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=60');
     res.status(200).json({
       club: {
-        nom: p.club_nom || 'Le club', sport: p.sport || '', ville: (p.adresse || '').split(',').slice(-1)[0].trim(),
+        nom: p.club_nom || 'Le club', sport: p.sport || '', adresse: p.adresse || '', ville: (p.adresse || '').split(',').slice(-1)[0].trim(),
         licencies: p.licencies || 0, spectateurs: p.spectateurs || 0, reseaux: p.reseaux || 0,
         logo: p.logo || null, primary: p.couleur_primaire || '#3b4cd8', secondary: p.couleur_secondaire || '#e0b400',
         mecenat: p.mecenat !== false
