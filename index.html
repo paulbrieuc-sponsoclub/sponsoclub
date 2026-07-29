@@ -134,7 +134,6 @@
         <div><label>Licenciés</label><input id="lic" type="number" value="240"></div>
         <div><label>Spectateurs / match</label><input id="spec" type="number" value="600"></div>
         <div><label>Abonnés réseaux</label><input id="res" type="number" value="3200"></div>
-        <div><label>Rayon de recherche (km)</label><input id="ray" type="number" value="5" min="1" max="20"></div>
         <div style="display:flex;align-items:flex-end">
           <button class="primary" onclick="saveProfile()"><i class="ti ti-device-floppy"></i> Enregistrer le profil</button>
         </div>
@@ -159,14 +158,15 @@
         <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter les commerces</button>
       </div>
       <div id="status" class="muted" style="margin-bottom:10px"></div>
-      <div id="filters" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <input id="f-search" placeholder="Rechercher un nom…" oninput="applyFilters()" style="flex:1;min-width:170px">
-        <select id="f-dist" onchange="applyFilters()" style="width:auto"><option value="">Distance : toutes</option><option value="1">≤ 1 km</option><option value="3">≤ 3 km</option><option value="5">≤ 5 km</option><option value="10">≤ 10 km</option><option value="20">≤ 20 km</option></select>
+      <div id="filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+        <span class="muted" style="font-size:12px">Critères :</span>
+        <select id="f-dist" onchange="run()" style="width:auto"><option value="3">Rayon : 3 km</option><option value="5">Rayon : 5 km</option><option value="10" selected>Rayon : 10 km</option><option value="15">Rayon : 15 km</option><option value="20">Rayon : 20 km</option></select>
         <select id="f-secteur" onchange="applyFilters()" style="width:auto"><option value="">Secteur : tous</option></select>
         <select id="f-taille" onchange="applyFilters()" style="width:auto"><option value="">Taille : toutes</option><option value="micro">Micro (0-9 salariés)</option><option value="petite">Petite (10-49)</option><option value="grande">Moyenne / Grande (50+)</option></select>
         <select id="f-match" onchange="applyFilters()" style="width:auto"><option value="">Match : tous</option><option value="4">Match élevé</option><option value="3">Match moyen et +</option></select>
+        <input id="f-search" placeholder="Rechercher un nom…" oninput="applyFilters()" style="flex:1;min-width:150px">
       </div>
-      <div class="card" id="results"><div class="empty">Clique sur « Détecter les commerces » (l'adresse et le rayon se règlent dans l'onglet Profil).</div></div>
+      <div class="card" id="results"><div class="empty">Choisis un rayon puis clique sur « Détecter les commerces » (l'adresse du club se règle dans l'onglet Profil).</div></div>
     </div>
 
     <div class="sect tabpage tab-sponsors">
@@ -329,7 +329,8 @@ function parseOsm(els,clat,clon){return (els||[]).map(e=>{const t=e.tags||{};con
 function mergeDedupe(list){list.sort((a,b)=>b.sc-a.sc||((a.dist??1e9)-(b.dist??1e9)));const seen={},out=[];for(const x of list){const k=(x.name||"").toLowerCase().trim();if(!k||seen[k])continue;seen[k]=1;out.push(x);}return out.slice(0,200);}
 function normalize(list,clat,clon){const seen={};return list.map(e=>{const et=(e.matching_etablissements&&e.matching_etablissements[0])||e.siege||{};if(et.etat_administratif&&et.etat_administratif!=="A")return null;const name=e.nom_complet||et.nom_commercial||e.nom_raison_sociale||"Établissement";const naf=et.activite_principale||e.activite_principale||"";const [cl,ic,base]=cat(naf);const el=parseFloat(et.latitude),eo=parseFloat(et.longitude);let dist=null;if(!isNaN(el)&&!isNaN(eo))dist=hav(clat,clon,el,eo);let ville=et.libelle_commune||"";if(!ville&&et.adresse){const mm=et.adresse.match(/\d{5}\s+(.+)$/);if(mm)ville=mm[1].trim();}let sc=base;if(dist!=null){if(dist<1)sc++;else if(dist>4)sc--;}return{name:cn(name),cl,ic,sc,dist,ville:cn(ville),effectif:(et.tranche_effectif_salarie||e.tranche_effectif_salarie||"")};}).filter(x=>{if(!x||x.sc<1)return false;const k=x.name.toLowerCase();if(seen[k])return false;seen[k]=1;return true;}).sort((a,b)=>b.sc-a.sc||((a.dist??99)-(b.dist??99))).slice(0,200);}
 async function run(){
-  const adr=$("adr").value.trim();const rad=Math.min(20,Math.max(1,+$("ray").value||3));
+  const adr=$("adr").value.trim();const rad=Math.min(20,Math.max(1,+($("f-dist")?$("f-dist").value:0)||10));
+  if(!adr){$("status").innerHTML='<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> Renseigne d\'abord l\'adresse du stade dans l\'onglet Profil, puis enregistre.';return;}
   $("status").innerHTML='<span class="spin"></span> Géocodage…'; $("results").innerHTML='<div class="empty"><span class="spin"></span></div>';
   try{const g=await geocode(adr);$("status").innerHTML='<span class="spin"></span> Recherche des commerces autour de « '+g.label+' »…';
     const [rE,rO]=await Promise.allSettled([nearby(g.lat,g.lon,rad),overpass(g.lat,g.lon,Math.min(rad,5))]);
