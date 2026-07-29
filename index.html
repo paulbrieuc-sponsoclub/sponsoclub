@@ -229,7 +229,7 @@ function osmCat(t){const a=t.amenity,s=t.shop;
   if(s)return["Commerce","ti-building-store",3];
   return["Commerce local","ti-building-store",2];
 }
-function parseOsm(els,clat,clon){return (els||[]).map(e=>{const t=e.tags||{};const name=t.name;if(!name)return null;const la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);let dist=null;if(la!=null&&lo!=null)dist=hav(clat,clon,la,lo);const[cl,ic,sc]=osmCat(t);const photo=(t.image&&/^https?:\/\//.test(t.image))?t.image:null;return{name:name,cl,ic,sc,dist,ville:t["addr:city"]||"",photo};}).filter(x=>x);}
+function parseOsm(els,clat,clon){return (els||[]).map(e=>{const t=e.tags||{};const name=t.name;if(!name)return null;const la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);let dist=null;if(la!=null&&lo!=null)dist=hav(clat,clon,la,lo);const[cl,ic,sc]=osmCat(t);const photo=(t.image&&/^https?:\/\//.test(t.image))?t.image:null;const phone=t.phone||t["contact:phone"]||"";const website=t.website||t["contact:website"]||"";const email=t.email||t["contact:email"]||"";return{name:name,cl,ic,sc,dist,ville:t["addr:city"]||"",photo,phone,website,email};}).filter(x=>x);}
 function mergeDedupe(list){list.sort((a,b)=>b.sc-a.sc||((a.dist??1e9)-(b.dist??1e9)));const seen={},out=[];for(const x of list){const k=(x.name||"").toLowerCase().trim();if(!k||seen[k])continue;seen[k]=1;out.push(x);}return out.slice(0,60);}
 function normalize(list,clat,clon){const seen={};return list.map(e=>{const et=(e.matching_etablissements&&e.matching_etablissements[0])||e.siege||{};if(et.etat_administratif&&et.etat_administratif!=="A")return null;const name=e.nom_complet||et.nom_commercial||e.nom_raison_sociale||"Établissement";const naf=et.activite_principale||e.activite_principale||"";const [cl,ic,base]=cat(naf);const el=parseFloat(et.latitude),eo=parseFloat(et.longitude);let dist=null;if(!isNaN(el)&&!isNaN(eo))dist=hav(clat,clon,el,eo);let ville=et.libelle_commune||"";if(!ville&&et.adresse){const mm=et.adresse.match(/\d{5}\s+(.+)$/);if(mm)ville=mm[1].trim();}let sc=base;if(dist!=null){if(dist<1)sc++;else if(dist>4)sc--;}return{name:cn(name),cl,ic,sc,dist,ville:cn(ville)};}).filter(x=>{if(!x||x.sc<1)return false;const k=x.name.toLowerCase();if(seen[k])return false;seen[k]=1;return true;}).sort((a,b)=>b.sc-a.sc||((a.dist??99)-(b.dist??99))).slice(0,40);}
 async function run(){
@@ -248,7 +248,7 @@ function renderResults(){
   if(!prospects.length){$("results").innerHTML='<div class="empty">Aucun commerce.</div>';return;}
   const pages=Math.ceil(prospects.length/PAGE); if(curPage>pages)curPage=1;
   const start=(curPage-1)*PAGE, slice=prospects.slice(start,start+PAGE);
-  let html=slice.map((p,k)=>{const i=start+k;const[l,c]=ml(p.sc);const d=p.dist!=null?(p.dist<1?Math.round(p.dist*1000)+" m":p.dist.toFixed(1)+" km"):"—";return `<div class="item">${vign(p)}<div class="grow"><div class="t">${p.name}</div><div class="s">${p.cl} · ${d}${p.ville?" · "+p.ville:""}</div></div><span class="pill ${c}">${l}</span><button class="primary" onclick="dossier(${i})"><i class="ti ti-sparkles"></i> Dossier</button></div>`;}).join("");
+  let html=slice.map((p,k)=>{const i=start+k;const[l,c]=ml(p.sc);const d=p.dist!=null?(p.dist<1?Math.round(p.dist*1000)+" m":p.dist.toFixed(1)+" km"):"—";return `<div class="item">${vign(p)}<div class="grow"><div class="t">${p.name}</div><div class="s">${p.cl} · ${d}${p.ville?" · "+p.ville:""}</div>${(p.phone||p.website||p.email)?`<div class="s" style="margin-top:3px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:12px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none;margin-right:12px"><i class="ti ti-world"></i> site</a>`:""}${p.email?`<a href="mailto:${p.email}" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-mail"></i> ${p.email}</a>`:""}</div>`:""}</div><span class="pill ${c}">${l}</span><button class="primary" onclick="dossier(${i})"><i class="ti ti-sparkles"></i> Dossier</button></div>`;}).join("");
   if(pages>1){html+=`<div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:14px;border-top:1px solid var(--border)"><button onclick="goPage(-1)"${curPage===1?" disabled":""}><i class="ti ti-chevron-left"></i> Précédent</button><span class="muted">Page ${curPage} / ${pages}</span><button onclick="goPage(1)"${curPage===pages?" disabled":""}>Suivant <i class="ti ti-chevron-right"></i></button></div>`;}
   $("results").innerHTML=html;
 }
@@ -271,7 +271,7 @@ function dossier(i){
 }
 async function addPipe(i){
   const p=prospects[i];
-  const {error}=await sb.from("pipeline").insert({name:p.name,categorie:p.cl,statut:"À contacter"});
+  const {error}=await sb.from("pipeline").insert({name:p.name,categorie:p.cl,statut:"À contacter",email_to:p.email||null,phone:p.phone||null,website:p.website||null});
   $("dlg").close();
   if(error){alert("Erreur: "+error.message);return;}
   loadPipe();
@@ -312,6 +312,7 @@ function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSave
       <div><label>Prochaine action</label><input id="sp-action" value="${(p.next_action||'').replace(/"/g,'&quot;')}" placeholder="ex. relancer le 15/09"></div>
     </div>
     <div style="background:var(--accentbg);color:var(--accenttx);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px"><i class="ti ti-bulb"></i> <span id="sp-hint">${actionHint(p.statut)}</span></div>
+    ${(p.phone||p.website)?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:14px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-world"></i> site web</a>`:""}</div>`:""}
     <label style="margin-bottom:6px">Contreparties à livrer</label>
     <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
     <label>Notes</label>
