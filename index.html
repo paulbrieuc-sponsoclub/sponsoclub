@@ -21,7 +21,11 @@
   h2{font-size:15px;font-weight:600;margin-bottom:14px}
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
   label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
-  input,select{width:100%;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px;background:var(--surface)}
+  input:not([type=checkbox]),select{width:100%;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px;background:var(--surface)}
+  .cp{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:13.5px;color:var(--text)}
+  .cp:hover{background:var(--surface2)}
+  .cp input{width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);margin:0;cursor:pointer}
+  .cp:has(input:checked){background:var(--greenbg);border-color:#bfe3d4;color:var(--green)}
   button{font-family:inherit;font-size:13px;padding:9px 14px;border-radius:8px;border:1px solid var(--bstrong);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
   button:hover{background:var(--surface2)} button:active{transform:scale(.98)} button i{font-size:16px}
   button:disabled{opacity:.4;cursor:default} button:disabled:hover{background:var(--surface)}
@@ -260,7 +264,7 @@ async function loadPipe(){
 }
 function contrepartiesFor(pack){const b={Bronze:["Logo sur le site","4 posts réseaux / an","Citation newsletter"],Argent:["Logo sur le site","Panneau au stade","Logo sur le short","12 posts réseaux","Invitation match VIP"],Or:["Logo sur le maillot","Panneau au stade","12 posts réseaux","Match parrainé à son nom","Invitation match VIP","Logo sur le site"]};return b[pack]||b.Argent;}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
-function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin-bottom:6px;color:var(--text)"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}> ${c}</label>`).join("");}
+function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
 function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const def={Bronze:300,Argent:800,Or:1500}[pack];const mt=$("sp-montant");if(def&&(!mt.value||mt.dataset.auto==="1")){mt.value=def;mt.dataset.auto="1";}}
 function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
   $("dlg-title").textContent="Gérer · "+p.name;
