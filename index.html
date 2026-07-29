@@ -283,7 +283,7 @@ function updateTopLogo(){const el=$("topLogo");if(!el)return;if(clubLogo){el.inn
 function onLogo(e){const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=ev=>{const img=new Image();img.onload=()=>{const c=document.createElement("canvas");const m=180,s=Math.min(1,m/Math.max(img.width,img.height));c.width=img.width*s;c.height=img.height*s;c.getContext("2d").drawImage(img,0,0,c.width,c.height);clubLogo=c.toDataURL("image/png");$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";updateTopLogo();};img.src=ev.target.result;};rd.readAsDataURL(f);}
 
 // ---- Détection (données publiques réelles) ----
-function cat(naf){const d=(naf||"").slice(0,2);const m={
+function cat(naf){const d=(naf||"").slice(0,2);const n=parseInt(d,10);const m={
   "56":["Restauration / café / bar","ti-tools-kitchen-2",3],
   "47":["Commerce de détail","ti-building-store",3],
   "10":["Boulangerie / alimentaire","ti-bread",3],
@@ -293,15 +293,20 @@ function cat(naf){const d=(naf||"").slice(0,2);const m={
   "86":["Santé (pharmacie, kiné…)","ti-medical-cross",3],
   "55":["Hôtel / hébergement","ti-bed",2],
   "68":["Immobilier","ti-home",2],
-  "43":["Artisan (plombier, élec…)","ti-hammer",2],
-  "41":["Construction","ti-building",2],
+  "46":["Commerce de gros","ti-packages",2],
   "74":["Photo / design / déco","ti-camera",2],
   "90":["Culture / spectacle","ti-masks-theater",2],
   "93":["Sport / loisirs","ti-ballpen",2],
-  "49":["Transport","ti-truck",1],
   "69":["Conseil / juridique","ti-briefcase",1],
   "70":["Gestion / holding","ti-briefcase",1]
-};return m[d]||["Entreprise locale","ti-building",1];}
+};
+if(m[d])return m[d];
+if(n>=41&&n<=43)return["Bâtiment / travaux (BTP)","ti-hammer",2];
+if(n>=49&&n<=53)return["Transport / logistique","ti-truck",2];
+if(n>=35&&n<=39)return["Énergie / environnement","ti-bolt",2];
+if(n>=13&&n<=33)return["Industrie / fabrication","ti-building-factory-2",2];
+if(n>=1&&n<=9)return["Agriculture / matières premières","ti-plant-2",2];
+return["Autre entreprise","ti-building",1];}
 function hav(a,b,c,d){const R=6371,r=Math.PI/180,x=(c-a)*r,y=(d-b)*r;const h=Math.sin(x/2)**2+Math.cos(a*r)*Math.cos(c*r)*Math.sin(y/2)**2;return R*2*Math.atan2(Math.sqrt(h),Math.sqrt(1-h));}
 function cn(n){return n.replace(/\b([A-ZÀ-Ÿ]{2,})\b/g,w=>w.charAt(0)+w.slice(1).toLowerCase());}
 function ml(s){return s>=4?["match élevé","green"]:s>=3?["match moyen","amber"]:["à qualifier","gray"];}
