@@ -142,6 +142,19 @@
       </div>
     </div>
 
+    <div class="card tabpage tab-profil">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+        <h2 style="margin:0"><i class="ti ti-users"></i> Équipe du club</h2>
+        <span class="muted" id="team-count" style="font-size:13px"></span>
+      </div>
+      <p class="muted" style="font-size:13.5px;margin-bottom:14px">Jusqu'à 5 administrateurs peuvent gérer ce compte ensemble. Invitez un bénévole par email : il recevra un lien pour s'inscrire et rejoindre le club.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+        <input id="inv-email" type="email" placeholder="email@duclub.fr" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter')inviteMember(this)">
+        <button class="primary" onclick="inviteMember(this)"><i class="ti ti-user-plus"></i> Inviter</button>
+      </div>
+      <div id="members-list"></div>
+    </div>
+
     <div class="sect tabpage tab-offres">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <h2 style="margin:0">Offres de sponsoring</h2>
@@ -212,6 +225,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
+let clubId=null, myRole="owner", clubMembers=[];
 const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
 let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
@@ -254,10 +268,22 @@ async function logout(){ await sb.auth.signOut(); location.reload(); }
 async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
-  await loadProfile(); await loadPipe(); loadActions(); switchTab("sponsors");
+  await joinClub();
+  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); switchTab("sponsors");
+}
+async function joinClub(){
+  clubId=user.id; // repli par défaut
+  try{
+    const {data}=await sb.auth.getSession();
+    const tok=data&&data.session&&data.session.access_token;
+    if(!tok)return;
+    const r=await fetch("/api/join",{method:"POST",headers:{Authorization:"Bearer "+tok}});
+    const j=await r.json().catch(()=>({}));
+    if(j&&j.club_id){clubId=j.club_id;myRole=j.role||"admin";}
+  }catch(e){/* repli : l'utilisateur reste son propre club */}
 }
 async function loadProfile(){
-  const {data}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
+  const {data}=await sb.from("profiles").select("*").eq("id",clubId||user.id).maybeSingle();
   if(data){ $("nom").value=data.club_nom||""; $("adr").value=data.adresse||""; $("sport").value=data.sport||"Rugby";
     $("lic").value=data.licencies||240; $("spec").value=data.spectateurs||600; $("res").value=data.reseaux||3200;
     clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
@@ -271,13 +297,64 @@ function updateTopName(){const t=$("appTitle");if(t)t.textContent=$("nom").value
 function showSummary(){$("sum-name").textContent=$("nom").value||"Mon club";$("sum-sub").textContent=((+$("lic").value||0)+" licenciés")+($("adr").value?(" · "+$("adr").value):"");if(clubLogo){$("sum-logo").src=clubLogo;$("sum-logo").style.display="block";}else{$("sum-logo").style.display="none";}$("profile-summary").style.display="block";$("profile-edit").style.display="none";updateTopName();}
 function editProfile(){$("profile-summary").style.display="none";$("profile-edit").style.display="block";}
 async function saveProfile(){
-  const row={id:user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
+  const row={id:clubId||user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
     licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,
     logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,mecenat:($("p-mecenat")?$("p-mecenat").checked:true),updated_at:new Date().toISOString()};
   clubMecenat=row.mecenat;
   const {error}=await sb.from("profiles").upsert(row);
   $("status").innerHTML=error?('<span style="color:#a12">Erreur: '+error.message+'</span>'):'<i class="ti ti-circle-check" style="color:var(--green)"></i> Profil enregistré.';
   if(!error)showSummary();
+}
+async function loadMembers(){
+  if(!clubId)return;
+  const {data,error}=await sb.from("members").select("*").eq("club_id",clubId).order("created_at",{ascending:true});
+  if(error){clubMembers=[];}else{clubMembers=data||[];}
+  renderMembers();
+}
+function renderMembers(){
+  const box=$("members-list");if(!box)return;
+  const n=clubMembers.length;
+  const tc=$("team-count");if(tc)tc.textContent=n+" / 5 membre"+(n>1?"s":"");
+  if(!clubMembers.length){box.innerHTML='<div class="empty">Vous êtes seul sur ce compte pour l\'instant.</div>';return;}
+  box.innerHTML=clubMembers.map(m=>{
+    const self=m.user_id&&user&&m.user_id===user.id;
+    const owner=m.role==="owner";
+    const badge=owner?'<span class="pill amber">Propriétaire</span>':(m.status==="invited"?'<span class="pill">Invitation envoyée</span>':'<span class="pill green">Actif</span>');
+    const canRemove=!owner&&!self;
+    return `<div class="item"><div class="grow"><div class="t">${(m.email||'—').replace(/</g,"&lt;")}${self?' <span class="muted">(vous)</span>':''}</div><div class="s">${badge}</div></div>${canRemove?`<button onclick="removeMember(${m.id},this)" aria-label="Retirer" style="padding:8px"><i class="ti ti-trash"></i></button>`:''}</div>`;
+  }).join("");
+}
+async function inviteMember(btn){
+  const el=$("inv-email");const email=(el.value||"").trim().toLowerCase();
+  if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){alert("Renseigne une adresse email valide.");return;}
+  if(clubMembers.length>=5){alert("Limite atteinte : 5 membres maximum par club.");return;}
+  if(clubMembers.some(m=>(m.email||"").toLowerCase()===email)){alert("Cette adresse fait déjà partie de l'équipe.");return;}
+  const bo=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';
+  try{
+    const {error}=await sb.from("members").insert({club_id:clubId,email,status:"invited",role:"admin",invited_by:user.id});
+    if(error)throw new Error(error.message);
+    const club=$("nom").value||"le club";
+    const html=`<div style="font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#222">
+      <p>Bonjour,</p>
+      <p><b>${(user.email||"Un membre").replace(/</g,"&lt;")}</b> vous invite à rejoindre <b>${club.replace(/</g,"&lt;")}</b> sur <b>Sponsoclub</b>, l'outil qui aide le club à trouver et gérer ses sponsors.</p>
+      <p>Pour rejoindre le compte, créez votre accès avec <b>cette adresse email</b> (${email}) :</p>
+      <p><a href="https://sponsoclub.fr" style="display:inline-block;background:#3b4cd8;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:bold">Rejoindre ${club.replace(/</g,"&lt;")}</a></p>
+      <p style="color:#666;font-size:13px">Une fois inscrit avec cette adresse, vous serez automatiquement rattaché au club et verrez les mêmes sponsors et données que l'équipe.</p>
+      <p style="color:#999;font-size:12px">Sponsoclub · sponsoclub.fr</p>
+    </div>`;
+    const r=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to:email,subject:"Invitation à rejoindre "+club+" sur Sponsoclub",html,fromName:club,replyTo:(user&&user.email)||""})});
+    const j=await r.json().catch(()=>({}));
+    el.value="";
+    await loadMembers();
+    if(!r.ok||j.error){alert("Membre ajouté, mais l'email d'invitation n'a pas pu être envoyé ("+(j.error||"erreur")+"). Préviens-le manuellement : il doit s'inscrire sur sponsoclub.fr avec "+email+".");}
+  }catch(e){alert("Erreur : "+e.message);}
+  finally{btn.disabled=false;btn.innerHTML=bo;}
+}
+async function removeMember(id,btn){
+  if(!confirm("Retirer ce membre du club ?"))return;
+  const {error}=await sb.from("members").delete().eq("id",id);
+  if(error){alert("Erreur : "+error.message);return;}
+  loadMembers();
 }
 function applyTheme(){document.documentElement.style.setProperty("--accent",clubPrimary);document.documentElement.style.setProperty("--accenttx",clubPrimary);}
 function setTheme(which,val){if(which==="primary")clubPrimary=val;else clubSecondary=val;applyTheme();updateTopLogo();}
@@ -390,7 +467,7 @@ function dossier(i){
 }
 async function addPipe(i){
   const p=filtered[i];
-  const {error}=await sb.from("pipeline").insert({name:p.name,categorie:p.cl,statut:"À contacter",email_to:p.email||null,phone:p.phone||null,website:p.website||null});
+  const {error}=await sb.from("pipeline").insert({name:p.name,categorie:p.cl,statut:"À contacter",email_to:p.email||null,phone:p.phone||null,website:p.website||null,club_id:clubId});
   $("dlg").close();
   if(error){alert("Erreur: "+error.message);return;}
   loadPipe();
@@ -433,7 +510,7 @@ function addOffre(){if(!clubOffres)clubOffres=JSON.parse(JSON.stringify(DEFAULT_
 function removeOffre(i){clubOffres.splice(i,1);renderOffresEditor();}
 function addCp(i){clubOffres[i].contreparties.push("");renderOffresEditor();}
 function removeCp(i,j){clubOffres[i].contreparties.splice(j,1);renderOffresEditor();}
-async function saveOffres(btn){if(!user)return;btn.disabled=true;const {error}=await sb.from("profiles").upsert({id:user.id,offres:clubOffres,updated_at:new Date().toISOString()});btn.disabled=false;if(error){alert("Erreur: "+error.message);return;}showOffresView();}
+async function saveOffres(btn){if(!user)return;btn.disabled=true;const {error}=await sb.from("profiles").upsert({id:clubId||user.id,offres:clubOffres,updated_at:new Date().toISOString()});btn.disabled=false;if(error){alert("Erreur: "+error.message);return;}showOffresView();}
 function renderOffresView(){const box=$("offres-view");if(!box)return;const list=clubOffres||DEFAULT_OFFRES;box.innerHTML=list.map(o=>`<div class="offre-view"><div class="onom">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="price">${(o.prix||0).toLocaleString('fr-FR')} €<span style="font-size:12px;color:var(--faint);font-weight:400"> /an</span></div>${(clubMecenat&&o.prix)?`<div style="font-size:12px;color:var(--green);margin:-8px 0 10px"><i class="ti ti-discount"></i> Coût réel : ${Math.round(o.prix*0.4).toLocaleString('fr-FR')} € après défisc (−60%)</div>`:""}${(o.contreparties||[]).map(c=>`<div class="cp"><i class="ti ti-check"></i> ${(c||'').replace(/</g,'&lt;')}</div>`).join("")}</div>`).join("");}
 function showOffresView(){renderOffresView();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="grid";if(e)e.style.display="none";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="editOffres()"><i class="ti ti-edit"></i> Modifier les offres</button>';}
 function editOffres(){renderOffresEditor();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="none";if(e)e.style.display="block";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer</button>';}
@@ -523,7 +600,7 @@ function addPartner(){
 async function savePartner(btn){
   const name=$("np-name").value.trim(); if(!name){alert("Le nom est requis.");return;}
   btn.disabled=true;
-  const {error}=await sb.from("pipeline").insert({name,categorie:$("np-cat").value,statut:$("np-statut").value,pack:$("np-pack").value,montant:(+$("np-montant").value||null),email_to:$("np-email").value||null});
+  const {error}=await sb.from("pipeline").insert({name,categorie:$("np-cat").value,statut:$("np-statut").value,pack:$("np-pack").value,montant:(+$("np-montant").value||null),email_to:$("np-email").value||null,club_id:clubId});
   btn.disabled=false;
   if(error){alert("Erreur: "+error.message);return;}
   $("dlg").close(); loadPipe();
@@ -553,7 +630,8 @@ function importPartners(e){
         montant:num(r["Montant"]),
         email_to:(""+(r["Email"]||"")).trim()||null,
         phone:(""+(r["Téléphone"]||r["Telephone"]||"")).trim()||null,
-        website:(""+(r["Site web"]||r["Site"]||"")).trim()||null
+        website:(""+(r["Site web"]||r["Site"]||"")).trim()||null,
+        club_id:clubId
       })).filter(x=>x.name);
       e.target.value="";
       if(!toInsert.length){alert("Aucune ligne valide (vérifie la colonne « Nom »).");return;}
@@ -574,7 +652,7 @@ async function loadActions(){
   if(!data||!data.length){box.innerHTML='<div class="empty">Aucune action. Ajoute ta première tâche ci-dessus.</div>';return;}
   box.innerHTML=data.map(a=>`<div class="item"><input type="checkbox" ${a.fait?"checked":""} onchange="toggleAction(${a.id},this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;cursor:pointer"><div class="grow"><div class="t" style="${a.fait?'text-decoration:line-through;color:var(--faint)':''}">${(a.titre||'').replace(/</g,"&lt;")}</div>${a.echeance?`<div class="s"><i class="ti ti-calendar"></i> ${new Date(a.echeance).toLocaleDateString('fr-FR')}</div>`:""}</div><button onclick="delAction(${a.id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div>`).join("");
 }
-async function addAction(){const t=$("act-input").value.trim();if(!t)return;const d=$("act-date").value||null;const {error}=await sb.from("actions").insert({titre:t,echeance:d});if(error){alert("Erreur: "+error.message);return;}$("act-input").value="";$("act-date").value="";loadActions();}
+async function addAction(){const t=$("act-input").value.trim();if(!t)return;const d=$("act-date").value||null;const {error}=await sb.from("actions").insert({titre:t,echeance:d,club_id:clubId});if(error){alert("Erreur: "+error.message);return;}$("act-input").value="";$("act-date").value="";loadActions();}
 async function toggleAction(id,fait){await sb.from("actions").update({fait}).eq("id",id);loadActions();}
 async function delAction(id){await sb.from("actions").delete().eq("id",id);loadActions();}
 async function aiGenerate(type,data){
