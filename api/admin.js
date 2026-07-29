@@ -7,15 +7,27 @@ module.exports = async (req, res) => {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) { res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY manquante.' }); return; }
   const h = { apikey: key, Authorization: 'Bearer ' + key };
-  const prix = 29;
+  const PRIX = 29;
   try {
-    const pr = await fetch(url + '/rest/v1/profiles?select=id', { headers: h });
-    const clubs = (await pr.json()).length;
-    const pi = await fetch(url + '/rest/v1/pipeline?select=statut,montant', { headers: h });
-    const rows = await pi.json();
-    let signes = 0, sponsoring = 0;
-    const total = Array.isArray(rows) ? rows.length : 0;
-    if (Array.isArray(rows)) for (const r of rows) { if (r.statut === 'Signé') { signes++; sponsoring += (+r.montant || 0); } }
-    res.status(200).json({ clubs, total, signes, sponsoring, mrr: clubs * prix, prix });
+    const profiles = await (await fetch(url + '/rest/v1/profiles?select=id,club_nom,licencies,updated_at&limit=5000', { headers: h })).json();
+    const rows = await (await fetch(url + '/rest/v1/pipeline?select=user_id,statut,montant,created_at,email_sent_at,email_opened_at&limit=20000', { headers: h })).json();
+    const P = Array.isArray(profiles) ? profiles : [];
+    const R = Array.isArray(rows) ? rows : [];
+    const byId = {}; P.forEach(p => byId[p.id] = { nom: p.club_nom || 'Club sans nom', licencies: p.licencies || 0, dossiers: 0, signes: 0, sponsoring: 0, last: p.updated_at || null });
+    const statuts = { 'À contacter': 0, 'Contacté': 0, 'RDV': 0, 'Signé': 0, 'Perdu': 0 };
+    const months = {};
+    let signes = 0, sponsoring = 0, emails_envoyes = 0, emails_ouverts = 0;
+    for (const r of R) {
+      if (statuts[r.statut] === undefined) statuts[r.statut] = 0;
+      statuts[r.statut]++;
+      if (r.email_sent_at) emails_envoyes++;
+      if (r.email_opened_at) emails_ouverts++;
+      const c = byId[r.user_id]; if (c) { c.dossiers++; if (r.created_at && (!c.last || r.created_at > c.last)) c.last = r.created_at; }
+      if (r.statut === 'Signé') { signes++; const m = +r.montant || 0; sponsoring += m; if (c) { c.signes++; c.sponsoring += m; } const mm = (r.created_at || '').slice(0, 7); if (mm) { months[mm] = months[mm] || { dossiers: 0, sponsoring: 0 }; months[mm].sponsoring += m; } }
+      const mk = (r.created_at || '').slice(0, 7); if (mk) { months[mk] = months[mk] || { dossiers: 0, sponsoring: 0 }; months[mk].dossiers++; }
+    }
+    const clubs = Object.keys(byId).map(id => byId[id]).sort((a, b) => b.sponsoring - a.sponsoring);
+    const timeline = Object.keys(months).sort().map(m => ({ mois: m, dossiers: months[m].dossiers, sponsoring: months[m].sponsoring }));
+    res.status(200).json({ kpis: { clubs: P.length, total: R.length, signes, sponsoring, mrr: P.length * PRIX, prix: PRIX, panier: signes ? Math.round(sponsoring / signes) : 0, conversion: R.length ? Math.round(signes / R.length * 100) : 0, emails_envoyes, emails_ouverts, taux_ouverture: emails_envoyes ? Math.round(emails_ouverts / emails_envoyes * 100) : 0 }, statuts, clubs, timeline });
   } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); }
 };
