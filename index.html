@@ -127,17 +127,16 @@
           <button class="primary" style="flex:1;justify-content:center" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
         </div>
       </div>
-      <div style="margin-top:18px">
-        <label style="font-weight:500;display:block;margin-bottom:8px">Contreparties par pack <span class="muted" style="font-weight:400">(une par ligne)</span></label>
-        <div class="grid" style="grid-template-columns:1fr 1fr 1fr;gap:12px">
-          <div><label>Pack Bronze</label><textarea id="cp-bronze" style="width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6"></textarea></div>
-          <div><label>Pack Argent</label><textarea id="cp-argent" style="width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6"></textarea></div>
-          <div><label>Pack Or</label><textarea id="cp-or" style="width:100%;min-height:100px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6"></textarea></div>
-        </div>
-        <p class="muted" style="font-size:12px;margin-top:6px">Ces contreparties s'affichent dans la fiche de chaque sponsor selon son pack.</p>
-      </div>
       </div>
       <div id="status" class="muted" style="margin-top:12px"></div>
+    </div>
+
+    <div class="sect">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <h2 style="margin:0">Offres de sponsoring</h2>
+        <div style="display:flex;gap:8px"><button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer les offres</button></div>
+      </div>
+      <div id="offres" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px"></div>
     </div>
 
     <div class="sect">
@@ -185,8 +184,13 @@ const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
 const PAGE=10;
 let pipeData=[], spSaved={};
-let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubContreparties=null;
-const DEFAULT_CP={Bronze:["Logo sur le site","4 posts réseaux / an","Citation newsletter"],Argent:["Logo sur le site","Panneau au stade","Logo sur le short","12 posts réseaux","Invitation match VIP"],Or:["Logo sur le maillot","Panneau au stade","12 posts réseaux","Match parrainé à son nom","Invitation match VIP","Logo sur le site"]};
+let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null;
+const DEFAULT_OFFRES=[
+  {nom:"Bronze",prix:300,contreparties:["Logo sur le site du club","4 posts sur les réseaux / an","Citation dans la newsletter","Mention au micro les jours de match","Logo sur l'affiche de la saison"]},
+  {nom:"Argent",prix:800,contreparties:["Tout le pack Bronze","Panneau publicitaire au stade","Logo sur le short","12 posts sur les réseaux","Invitation VIP à un match"]},
+  {nom:"Or",prix:1500,contreparties:["Tout le pack Argent","Logo sur le maillot officiel","Un match parrainé à votre nom","Bâche géante au stade","Mise en avant sur tous nos supports"]}
+];
+function offreByName(nom){return (clubOffres||DEFAULT_OFFRES).find(x=>x.nom===nom);}
 
 if(SUPABASE_ANON_KEY==="COLLE_ICI_TA_CLE_ANON"){
   $("auth-msg").className="msg err";
@@ -226,22 +230,20 @@ async function loadProfile(){
   const {data}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
   if(data){ $("nom").value=data.club_nom||""; $("adr").value=data.adresse||""; $("sport").value=data.sport||"Rugby";
     $("lic").value=data.licencies||240; $("spec").value=data.spectateurs||600; $("res").value=data.reseaux||3200;
-    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubContreparties=data.contreparties_perso||null;
+    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null;
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
-    applyTheme(); updateTopLogo(); updateTopName(); fillCpEditor();
+    applyTheme(); updateTopLogo(); updateTopName(); renderOffresEditor();
     if(data.club_nom){showSummary();}else{editProfile();}
-  } else { fillCpEditor(); editProfile(); }
+  } else { renderOffresEditor(); editProfile(); }
 }
 function updateTopName(){const t=$("appTitle");if(t)t.textContent=$("nom").value||"Sponsoclub";}
 function showSummary(){$("sum-name").textContent=$("nom").value||"Mon club";$("sum-sub").textContent=((+$("lic").value||0)+" licenciés")+($("adr").value?(" · "+$("adr").value):"");if(clubLogo){$("sum-logo").src=clubLogo;$("sum-logo").style.display="block";}else{$("sum-logo").style.display="none";}$("profile-summary").style.display="block";$("profile-edit").style.display="none";updateTopName();}
 function editProfile(){$("profile-summary").style.display="none";$("profile-edit").style.display="block";}
 async function saveProfile(){
-  const parseCp=id=>{const el=document.getElementById(id);return el?el.value.split("\n").map(s=>s.trim()).filter(Boolean):[];};
-  clubContreparties={Bronze:parseCp("cp-bronze"),Argent:parseCp("cp-argent"),Or:parseCp("cp-or")};
   const row={id:user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
     licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,
-    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,contreparties_perso:clubContreparties,updated_at:new Date().toISOString()};
+    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,updated_at:new Date().toISOString()};
   const {error}=await sb.from("profiles").upsert(row);
   $("status").innerHTML=error?('<span style="color:#a12">Erreur: '+error.message+'</span>'):'<i class="ti ti-circle-check" style="color:var(--green)"></i> Profil enregistré.';
   if(!error)showSummary();
@@ -363,17 +365,32 @@ function renderKpis(){
   const cards=[["Sponsors signés",signes.length,"ti-heart-handshake"],["Argent généré",argent.toLocaleString("fr-FR")+" €","ti-cash"],["Dossiers en cours",encours,"ti-clock"],["Actions à mener",actions,"ti-checklist"]];
   $("kpis").innerHTML=cards.map(c=>`<div class="kpi"><div class="kpi-l"><i class="ti ${c[2]}"></i> ${c[0]}</div><div class="kpi-v">${c[1]}</div></div>`).join("");
 }
-function contrepartiesFor(pack){if(clubContreparties&&Array.isArray(clubContreparties[pack])&&clubContreparties[pack].length)return clubContreparties[pack];return DEFAULT_CP[pack]||DEFAULT_CP.Argent;}
-function fillCpEditor(){["Bronze","Argent","Or"].forEach(p=>{const el=document.getElementById("cp-"+p.toLowerCase());if(el)el.value=((clubContreparties&&clubContreparties[p])||DEFAULT_CP[p]).join("\n");});}
+function contrepartiesFor(nom){const o=offreByName(nom);return o&&Array.isArray(o.contreparties)?o.contreparties:DEFAULT_OFFRES[1].contreparties;}
+function renderOffresEditor(){const box=$("offres");if(!box)return;if(!clubOffres)clubOffres=JSON.parse(JSON.stringify(DEFAULT_OFFRES));
+  box.innerHTML=clubOffres.map((o,i)=>`<div class="card" style="padding:14px 16px">
+    <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+      <input value="${(o.nom||'').replace(/"/g,'&quot;')}" onchange="clubOffres[${i}].nom=this.value" placeholder="Nom de l'offre" style="font-weight:600">
+      <input type="number" value="${o.prix||''}" onchange="clubOffres[${i}].prix=+this.value||0" placeholder="€" style="width:80px;flex-shrink:0">
+      <button onclick="removeOffre(${i})" aria-label="Supprimer l'offre" style="flex-shrink:0;padding:8px;border-color:var(--border)"><i class="ti ti-trash"></i></button>
+    </div>
+    ${(o.contreparties||[]).map((c,j)=>`<div style="display:flex;gap:6px;margin-bottom:6px"><input value="${(c||'').replace(/"/g,'&quot;')}" onchange="clubOffres[${i}].contreparties[${j}]=this.value" style="font-size:13px"><button onclick="removeCp(${i},${j})" aria-label="Retirer" style="flex-shrink:0;padding:6px 9px;border-color:var(--border)"><i class="ti ti-x"></i></button></div>`).join("")}
+    <button onclick="addCp(${i})" style="font-size:12px;padding:6px 10px;margin-top:4px"><i class="ti ti-plus"></i> Contrepartie</button>
+  </div>`).join("");
+}
+function addOffre(){if(!clubOffres)clubOffres=JSON.parse(JSON.stringify(DEFAULT_OFFRES));clubOffres.push({nom:"Nouvelle offre",prix:0,contreparties:["Contrepartie 1"]});renderOffresEditor();}
+function removeOffre(i){clubOffres.splice(i,1);renderOffresEditor();}
+function addCp(i){clubOffres[i].contreparties.push("");renderOffresEditor();}
+function removeCp(i,j){clubOffres[i].contreparties.splice(j,1);renderOffresEditor();}
+async function saveOffres(btn){if(!user)return;const bo=btn.innerHTML;btn.disabled=true;const {error}=await sb.from("profiles").upsert({id:user.id,offres:clubOffres,updated_at:new Date().toISOString()});btn.disabled=false;if(error){alert("Erreur: "+error.message);return;}btn.innerHTML='<i class="ti ti-check"></i> Enregistré';setTimeout(()=>btn.innerHTML=bo,1500);}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
 function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
-function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const def={Bronze:300,Argent:800,Or:1500}[pack];const mt=$("sp-montant");if(def&&(!mt.value||mt.dataset.auto==="1")){mt.value=def;mt.dataset.auto="1";}}
-function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
+function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const o=offreByName(pack);const mt=$("sp-montant");if(o&&o.prix&&(!mt.value||mt.dataset.auto==="1")){mt.value=o.prix;mt.dataset.auto="1";}}
+function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||((clubOffres||DEFAULT_OFFRES)[0]||{}).nom||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
   $("dlg-title").textContent="Gérer · "+p.name;
   $("dlg-body").innerHTML=`
     <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
       <div><label>Statut</label><select id="sp-statut" onchange="document.getElementById('sp-hint').textContent=actionHint(this.value)">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select></div>
-      <div><label>Pack</label><select id="sp-pack" onchange="packChanged()">${["Bronze","Argent","Or"].map(o=>`<option ${pack===o?"selected":""}>${o}</option>`).join("")}</select></div>
+      <div><label>Pack</label><select id="sp-pack" onchange="packChanged()">${(clubOffres||DEFAULT_OFFRES).map(o=>`<option ${pack===o.nom?"selected":""}>${o.nom}</option>`).join("")}</select></div>
       <div><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
       <div><label>Prochaine action</label><input id="sp-action" value="${(p.next_action||'').replace(/"/g,'&quot;')}" placeholder="ex. relancer le 15/09"></div>
     </div>
@@ -436,7 +453,7 @@ function addPartner(){
       <div><label>Nom du partenaire</label><input id="np-name" placeholder="ex. Garage Central"></div>
       <div><label>Catégorie</label><input id="np-cat" placeholder="ex. Automobile"></div>
       <div><label>Statut</label><select id="np-statut">${opts.map(o=>`<option ${o==='Signé'?'selected':''}>${o}</option>`).join("")}</select></div>
-      <div><label>Pack</label><select id="np-pack">${["Bronze","Argent","Or"].map(o=>`<option ${o==='Argent'?'selected':''}>${o}</option>`).join("")}</select></div>
+      <div><label>Pack</label><select id="np-pack">${(clubOffres||DEFAULT_OFFRES).map((o,ix)=>`<option ${ix===1?'selected':''}>${o.nom}</option>`).join("")}</select></div>
       <div><label>Montant (€)</label><input id="np-montant" type="number" placeholder="ex. 800"></div>
       <div><label>Email du contact</label><input id="np-email" type="email" placeholder="contact@..."></div>
     </div>
