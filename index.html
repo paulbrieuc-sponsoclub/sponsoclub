@@ -159,6 +159,13 @@
         <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter les commerces</button>
       </div>
       <div id="status" class="muted" style="margin-bottom:10px"></div>
+      <div id="filters" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input id="f-search" placeholder="Rechercher un nom…" oninput="applyFilters()" style="flex:1;min-width:170px">
+        <select id="f-dist" onchange="applyFilters()" style="width:auto"><option value="">Distance : toutes</option><option value="1">≤ 1 km</option><option value="3">≤ 3 km</option><option value="5">≤ 5 km</option><option value="10">≤ 10 km</option><option value="20">≤ 20 km</option></select>
+        <select id="f-secteur" onchange="applyFilters()" style="width:auto"><option value="">Secteur : tous</option></select>
+        <select id="f-taille" onchange="applyFilters()" style="width:auto"><option value="">Taille : toutes</option><option value="micro">Micro (0-9 salariés)</option><option value="petite">Petite (10-49)</option><option value="grande">Moyenne / Grande (50+)</option></select>
+        <select id="f-match" onchange="applyFilters()" style="width:auto"><option value="">Match : tous</option><option value="4">Match élevé</option><option value="3">Match moyen et +</option></select>
+      </div>
       <div class="card" id="results"><div class="empty">Clique sur « Détecter les commerces » (l'adresse et le rayon se règlent dans l'onglet Profil).</div></div>
     </div>
 
@@ -205,7 +212,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
 const PAGE=10;
-let pipeData=[], spSaved={};
+let pipeData=[], spSaved={}, filtered=[];
 let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null;
 const DEFAULT_OFFRES=[
   {nom:"Bronze",prix:300,contreparties:["Logo sur le site du club","4 posts sur les réseaux / an","Citation dans la newsletter","Mention au micro les jours de match","Logo sur l'affiche de la saison"]},
@@ -318,9 +325,9 @@ function osmCat(t){const a=t.amenity,s=t.shop;
   if(s)return["Commerce","ti-building-store",3];
   return["Commerce local","ti-building-store",2];
 }
-function parseOsm(els,clat,clon){return (els||[]).map(e=>{const t=e.tags||{};const name=t.name;if(!name)return null;const la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);let dist=null;if(la!=null&&lo!=null)dist=hav(clat,clon,la,lo);const[cl,ic,sc]=osmCat(t);const photo=(t.image&&/^https?:\/\//.test(t.image))?t.image:null;const phone=t.phone||t["contact:phone"]||"";const website=t.website||t["contact:website"]||"";const email=t.email||t["contact:email"]||"";return{name:name,cl,ic,sc,dist,ville:t["addr:city"]||"",photo,phone,website,email};}).filter(x=>x);}
+function parseOsm(els,clat,clon){return (els||[]).map(e=>{const t=e.tags||{};const name=t.name;if(!name)return null;const la=e.lat||(e.center&&e.center.lat),lo=e.lon||(e.center&&e.center.lon);let dist=null;if(la!=null&&lo!=null)dist=hav(clat,clon,la,lo);const[cl,ic,sc]=osmCat(t);const photo=(t.image&&/^https?:\/\//.test(t.image))?t.image:null;const phone=t.phone||t["contact:phone"]||"";const website=t.website||t["contact:website"]||"";const email=t.email||t["contact:email"]||"";return{name:name,cl,ic,sc,dist,ville:t["addr:city"]||"",photo,phone,website,email,effectif:""};}).filter(x=>x);}
 function mergeDedupe(list){list.sort((a,b)=>b.sc-a.sc||((a.dist??1e9)-(b.dist??1e9)));const seen={},out=[];for(const x of list){const k=(x.name||"").toLowerCase().trim();if(!k||seen[k])continue;seen[k]=1;out.push(x);}return out.slice(0,200);}
-function normalize(list,clat,clon){const seen={};return list.map(e=>{const et=(e.matching_etablissements&&e.matching_etablissements[0])||e.siege||{};if(et.etat_administratif&&et.etat_administratif!=="A")return null;const name=e.nom_complet||et.nom_commercial||e.nom_raison_sociale||"Établissement";const naf=et.activite_principale||e.activite_principale||"";const [cl,ic,base]=cat(naf);const el=parseFloat(et.latitude),eo=parseFloat(et.longitude);let dist=null;if(!isNaN(el)&&!isNaN(eo))dist=hav(clat,clon,el,eo);let ville=et.libelle_commune||"";if(!ville&&et.adresse){const mm=et.adresse.match(/\d{5}\s+(.+)$/);if(mm)ville=mm[1].trim();}let sc=base;if(dist!=null){if(dist<1)sc++;else if(dist>4)sc--;}return{name:cn(name),cl,ic,sc,dist,ville:cn(ville)};}).filter(x=>{if(!x||x.sc<1)return false;const k=x.name.toLowerCase();if(seen[k])return false;seen[k]=1;return true;}).sort((a,b)=>b.sc-a.sc||((a.dist??99)-(b.dist??99))).slice(0,200);}
+function normalize(list,clat,clon){const seen={};return list.map(e=>{const et=(e.matching_etablissements&&e.matching_etablissements[0])||e.siege||{};if(et.etat_administratif&&et.etat_administratif!=="A")return null;const name=e.nom_complet||et.nom_commercial||e.nom_raison_sociale||"Établissement";const naf=et.activite_principale||e.activite_principale||"";const [cl,ic,base]=cat(naf);const el=parseFloat(et.latitude),eo=parseFloat(et.longitude);let dist=null;if(!isNaN(el)&&!isNaN(eo))dist=hav(clat,clon,el,eo);let ville=et.libelle_commune||"";if(!ville&&et.adresse){const mm=et.adresse.match(/\d{5}\s+(.+)$/);if(mm)ville=mm[1].trim();}let sc=base;if(dist!=null){if(dist<1)sc++;else if(dist>4)sc--;}return{name:cn(name),cl,ic,sc,dist,ville:cn(ville),effectif:(et.tranche_effectif_salarie||e.tranche_effectif_salarie||"")};}).filter(x=>{if(!x||x.sc<1)return false;const k=x.name.toLowerCase();if(seen[k])return false;seen[k]=1;return true;}).sort((a,b)=>b.sc-a.sc||((a.dist??99)-(b.dist??99))).slice(0,200);}
 async function run(){
   const adr=$("adr").value.trim();const rad=Math.min(20,Math.max(1,+$("ray").value||3));
   $("status").innerHTML='<span class="spin"></span> Géocodage…'; $("results").innerHTML='<div class="empty"><span class="spin"></span></div>';
@@ -330,20 +337,25 @@ async function run(){
     prospects=mergeDedupe(a);if(!prospects.length)throw new Error("aucun résultat");
     $("status").innerHTML='<i class="ti ti-circle-check" style="color:var(--green)"></i> '+prospects.length+' commerces détectés autour de '+g.label+' (commerces locaux + entreprises).';}
   catch(err){prospects=demo();$("status").innerHTML='<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> API indisponible ('+err.message+') — démonstration chargée.';}
-  curPage=1;renderResults();
+  curPage=1;setupFilters();applyFilters();
 }
+function setupFilters(){const sel=$("f-secteur");if(sel){const cats=[...new Set(prospects.map(p=>p.cl).filter(Boolean))].sort();sel.innerHTML='<option value="">Secteur : tous</option>'+cats.map(c=>`<option>${c}</option>`).join("");}const fb=$("filters");if(fb)fb.style.display="flex";}
+function sizeBucket(e){if(!e)return"";if(["00","01","02","03"].indexOf(e)>=0)return"micro";if(["11","12"].indexOf(e)>=0)return"petite";return"grande";}
+function applyFilters(){const q=($("f-search").value||"").toLowerCase().trim();const dmax=+$("f-dist").value||0;const sec=$("f-secteur").value;const taille=$("f-taille").value;const mmin=+$("f-match").value||0;
+  filtered=prospects.filter(p=>{if(q&&!(p.name||"").toLowerCase().includes(q))return false;if(dmax&&(p.dist==null||p.dist>dmax))return false;if(sec&&p.cl!==sec)return false;if(mmin&&p.sc<mmin)return false;if(taille&&sizeBucket(p.effectif)!==taille)return false;return true;});
+  curPage=1;renderResults();}
 function renderResults(){
-  $("rescount").textContent=prospects.length+" commerces";
-  if(!prospects.length){$("results").innerHTML='<div class="empty">Aucun commerce.</div>';return;}
-  const pages=Math.ceil(prospects.length/PAGE); if(curPage>pages)curPage=1;
-  const start=(curPage-1)*PAGE, slice=prospects.slice(start,start+PAGE);
+  $("rescount").textContent=filtered.length+" commerces";
+  if(!filtered.length){$("results").innerHTML='<div class="empty">Aucun commerce — élargis les filtres ou le rayon.</div>';return;}
+  const pages=Math.ceil(filtered.length/PAGE); if(curPage>pages)curPage=1;
+  const start=(curPage-1)*PAGE, slice=filtered.slice(start,start+PAGE);
   let html=slice.map((p,k)=>{const i=start+k;const[l,c]=ml(p.sc);const d=p.dist!=null?(p.dist<1?Math.round(p.dist*1000)+" m":p.dist.toFixed(1)+" km"):"—";return `<div class="item">${vign(p)}<div class="grow"><div class="t">${p.name}</div><div class="s">${p.cl} · ${d}${p.ville?" · "+p.ville:""}</div>${(p.phone||p.website||p.email)?`<div class="s" style="margin-top:3px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:12px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none;margin-right:12px"><i class="ti ti-world"></i> site</a>`:""}${p.email?`<a href="mailto:${p.email}" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-mail"></i> ${p.email}</a>`:""}</div>`:""}</div><span class="pill ${c}">${l}</span><button class="primary" onclick="dossier(${i})"><i class="ti ti-sparkles"></i> Dossier</button></div>`;}).join("");
   if(pages>1){html+=`<div style="display:flex;align-items:center;justify-content:center;gap:14px;padding:14px;border-top:1px solid var(--border)"><button onclick="goPage(-1)"${curPage===1?" disabled":""}><i class="ti ti-chevron-left"></i> Précédent</button><span class="muted">Page ${curPage} / ${pages}</span><button onclick="goPage(1)"${curPage===pages?" disabled":""}>Suivant <i class="ti ti-chevron-right"></i></button></div>`;}
   $("results").innerHTML=html;
 }
-function goPage(d){const pages=Math.ceil(prospects.length/PAGE);curPage=Math.min(pages,Math.max(1,curPage+d));renderResults();$("results").scrollIntoView({behavior:"smooth",block:"start"});}
+function goPage(d){const pages=Math.ceil(filtered.length/PAGE);curPage=Math.min(pages,Math.max(1,curPage+d));renderResults();$("results").scrollIntoView({behavior:"smooth",block:"start"});}
 function dossier(i){
-  const p=prospects[i];const c={nom:$("nom").value||"votre club",lic:+$("lic").value||0,spec:+$("spec").value||0,res:+$("res").value||0};
+  const p=filtered[i];const c={nom:$("nom").value||"votre club",lic:+$("lic").value||0,spec:+$("spec").value||0,res:+$("res").value||0};
   const email=`Objet : ${p.name} sur les maillots du ${c.nom} ?\n\nBonjour,\n\nJe suis en charge des partenariats du ${c.nom} — ${c.lic} licenciés et environ ${c.spec} spectateurs par match, beaucoup de familles installées à quelques minutes de chez vous.\n\nNous cherchons des partenaires locaux pour la saison. En échange d'un soutien, votre enseigne serait visible auprès de ce public : panneau au stade, logo sur nos tenues, relais réseaux (${c.res} abonnés). Trois formules, de 300 à 1 500 €.\n\nAuriez-vous 15 minutes cette semaine ?\n\nBien à vous,\n${c.nom}`;
   $("dlg-title").textContent="Dossier · "+p.name;
   $("dlg-body").innerHTML=`<p class="muted" style="margin-bottom:10px">${p.cl}${p.ville?" · "+p.ville:""}</p>
@@ -359,7 +371,7 @@ function dossier(i){
   $("dlg").showModal();
 }
 async function addPipe(i){
-  const p=prospects[i];
+  const p=filtered[i];
   const {error}=await sb.from("pipeline").insert({name:p.name,categorie:p.cl,statut:"À contacter",email_to:p.email||null,phone:p.phone||null,website:p.website||null});
   $("dlg").close();
   if(error){alert("Erreur: "+error.message);return;}
@@ -549,7 +561,7 @@ async function aiGenerate(type,data){
   if(!r.ok||j.error)throw new Error(j.error||("HTTP "+r.status));
   return j.text;
 }
-async function aiEmail(i,btn){const p=prospects[i];const el=document.getElementById("mail");const old=el.innerText;const bo=btn?btn.innerHTML:"";
+async function aiEmail(i,btn){const p=filtered[i];const el=document.getElementById("mail");const old=el.innerText;const bo=btn?btn.innerHTML:"";
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Rédaction…';}
   el.innerHTML='<span class="spin"></span> Rédaction par l\'IA…';
   try{const t=await aiGenerate("email",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,categorie:p.cl});el.innerText=t;}
