@@ -124,14 +124,15 @@ function renderChart(){
 }
 function fmtDate(d){if(!d)return"—";const x=new Date(d);return x.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"});}
 function renderTable(){
-  const cols=[["nom","Club",0],["licencies","Licenciés",1],["dossiers","Dossiers",1],["signes","Signés",1],["sponsoring","Sponsoring",1],["last","Dernière activité",1]];
-  const clubs=[...DATA.clubs].sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(sortKey==="nom"||sortKey==="last"){x=(x||"");y=(y||"");return sortDir*(x<y?-1:x>y?1:0);}return sortDir*(( x||0)-(y||0));});
+  const strKeys=["nom","email","inscrit","last"];
+  const cols=[["email","Email",0],["nom","Club",0],["inscrit","Inscrit",1],["dossiers","Dossiers",1],["signes","Signés",1],["sponsoring","Sponsoring",1],["last","Activité",1]];
+  const clubs=[...DATA.clubs].sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(strKeys.indexOf(sortKey)>=0){x=(x||"");y=(y||"");return sortDir*(x<y?-1:x>y?1:0);}return sortDir*((x||0)-(y||0));});
   const th=cols.map(c=>`<th class="${c[2]?'num':''}" onclick="setSort('${c[0]}')">${c[1]}${sortKey===c[0]?(sortDir<0?" ▾":" ▴"):""}</th>`).join("");
-  const rows=clubs.map(c=>`<tr><td>${c.nom}</td><td class="num">${c.licencies}</td><td class="num">${c.dossiers}</td><td class="num">${c.signes}</td><td class="num">${eur(c.sponsoring)}</td><td class="num">${fmtDate(c.last)}</td></tr>`).join("");
-  document.getElementById("clubs").innerHTML="<thead><tr>"+th+"</tr></thead><tbody>"+(rows||'<tr><td colspan="6" style="color:var(--faint)">Aucun club.</td></tr>')+"</tbody>";
-  document.getElementById("clubcount").textContent=clubs.length+" clubs";
+  const rows=clubs.map(c=>`<tr><td>${c.email||'—'}</td><td>${c.nom||'—'}</td><td class="num">${fmtDate(c.inscrit)}</td><td class="num">${c.dossiers}</td><td class="num">${c.signes}</td><td class="num">${eur(c.sponsoring)}</td><td class="num">${fmtDate(c.last)}</td></tr>`).join("");
+  document.getElementById("clubs").innerHTML="<thead><tr>"+th+"</tr></thead><tbody>"+(rows||'<tr><td colspan="7" style="color:var(--faint)">Aucun compte.</td></tr>')+"</tbody>";
+  document.getElementById("clubcount").textContent=clubs.length+" comptes";
 }
-function setSort(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==="nom")?1:-1;}renderTable();}
+function setSort(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==="nom"||k==="email")?1:-1;}renderTable();}
 </script>
 </body>
 </html>
