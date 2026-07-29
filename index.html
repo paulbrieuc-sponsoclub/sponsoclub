@@ -46,6 +46,15 @@
   .kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:15px 18px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
   .kpi-l{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:6px}
   .kpi-v{font-size:26px;font-weight:600;letter-spacing:-.02em}
+  .tabs{display:flex;gap:2px;margin-bottom:22px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+  .tabbtn{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);padding:11px 16px;font-size:14px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;border-radius:0}
+  .tabbtn:hover{background:transparent;color:var(--text)}
+  .tabbtn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+  .offre-view{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
+  .offre-view .onom{font-size:13px;color:var(--muted)}
+  .offre-view .price{font-size:24px;font-weight:600;margin:2px 0 12px;color:var(--accent)}
+  .offre-view .cp{display:flex;gap:8px;font-size:13.5px;margin-bottom:7px;color:var(--text)}
+  .offre-view .cp i{color:var(--green);font-size:16px;flex-shrink:0}
   dialog{border:none;border-radius:16px;padding:0;width:min(720px,94vw);max-height:88vh;overflow:hidden;margin:auto;box-shadow:0 24px 70px rgba(0,0,0,.35)}
   dialog::backdrop{background:rgba(0,0,0,.5)}
   .dlg-h{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border)}
@@ -90,14 +99,18 @@
     <div class="me"><span id="who"></span><button onclick="logout()" style="color:#fff;border-color:#333;background:#1d2029"><i class="ti ti-logout"></i> Déconnexion</button></div>
   </div>
   <div class="wrap">
-    <div id="kpis"></div>
-    <div class="card">
+    <div class="tabs">
+      <button class="tabbtn active" data-tab="sponsors" onclick="switchTab('sponsors')"><i class="ti ti-map-search"></i> Sponsors</button>
+      <button class="tabbtn" data-tab="offres" onclick="switchTab('offres')"><i class="ti ti-tag"></i> Offres</button>
+      <button class="tabbtn" data-tab="profil" onclick="switchTab('profil')"><i class="ti ti-settings"></i> Profil du club</button>
+    </div>
+    <div id="kpis" class="tabpage tab-sponsors"></div>
+    <div class="card tabpage tab-profil">
       <div id="profile-summary" style="display:none">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <img id="sum-logo" alt="" style="width:48px;height:48px;border-radius:11px;object-fit:contain;background:#fff;padding:3px;border:1px solid var(--border);display:none">
           <div style="flex:1;min-width:160px"><div id="sum-name" style="font-weight:600;font-size:16px"></div><div id="sum-sub" class="muted" style="font-size:13px"></div></div>
-          <button onclick="editProfile()"><i class="ti ti-edit"></i> Modifier le profil</button>
-          <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
+          <button class="primary" onclick="editProfile()"><i class="ti ti-edit"></i> Modifier le profil</button>
         </div>
       </div>
       <div id="profile-edit">
@@ -121,32 +134,35 @@
         <div><label>Licenciés</label><input id="lic" type="number" value="240"></div>
         <div><label>Spectateurs / match</label><input id="spec" type="number" value="600"></div>
         <div><label>Abonnés réseaux</label><input id="res" type="number" value="3200"></div>
-        <div><label>Rayon (km)</label><input id="ray" type="number" value="5" min="1" max="20"></div>
-        <div style="display:flex;align-items:flex-end;gap:8px">
-          <button onclick="saveProfile()"><i class="ti ti-device-floppy"></i> Enregistrer</button>
-          <button class="primary" style="flex:1;justify-content:center" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
+        <div><label>Rayon de recherche (km)</label><input id="ray" type="number" value="5" min="1" max="20"></div>
+        <div style="display:flex;align-items:flex-end">
+          <button class="primary" onclick="saveProfile()"><i class="ti ti-device-floppy"></i> Enregistrer le profil</button>
         </div>
       </div>
       </div>
-      <div id="status" class="muted" style="margin-top:12px"></div>
     </div>
 
-    <div class="sect">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div class="sect tabpage tab-offres">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <h2 style="margin:0">Offres de sponsoring</h2>
-        <div style="display:flex;gap:8px"><button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer les offres</button></div>
+        <div id="offres-actions" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       </div>
-      <div id="offres" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px"></div>
+      <div id="offres-view" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px"></div>
+      <div id="offres-edit" style="display:none">
+        <div id="offres" class="grid" style="grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px"></div>
+      </div>
     </div>
 
-    <div class="sect">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <h2 style="margin:0">Prospects détectés</h2><span class="muted" id="rescount"></span>
+    <div class="sect tabpage tab-sponsors">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <h2 style="margin:0">Recherche de sponsoring <span class="muted" id="rescount"></span></h2>
+        <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter les commerces</button>
       </div>
-      <div class="card" id="results"><div class="empty">Renseigne l'adresse du stade puis lance la détection.</div></div>
+      <div id="status" class="muted" style="margin-bottom:10px"></div>
+      <div class="card" id="results"><div class="empty">Clique sur « Détecter les commerces » (l'adresse et le rayon se règlent dans l'onglet Profil).</div></div>
     </div>
 
-    <div class="sect">
+    <div class="sect tabpage tab-sponsors">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
         <h2 style="margin:0">Pipeline <span class="muted" id="pipcount"></span></h2>
         <button onclick="addPartner()"><i class="ti ti-plus"></i> Ajouter un partenaire</button>
@@ -154,7 +170,7 @@
       <div class="card" id="pipeline"><div class="empty">Chargement…</div></div>
     </div>
 
-    <div class="sect">
+    <div class="sect tabpage tab-sponsors">
       <h2>Actions à mener <span class="muted" id="actcount"></span></h2>
       <div class="card" style="padding:16px 18px">
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -224,7 +240,7 @@ async function logout(){ await sb.auth.signOut(); location.reload(); }
 async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
-  await loadProfile(); await loadPipe(); loadActions();
+  await loadProfile(); await loadPipe(); loadActions(); switchTab("sponsors");
 }
 async function loadProfile(){
   const {data}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
@@ -233,9 +249,9 @@ async function loadProfile(){
     clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null;
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
-    applyTheme(); updateTopLogo(); updateTopName(); renderOffresEditor();
+    applyTheme(); updateTopLogo(); updateTopName(); showOffresView();
     if(data.club_nom){showSummary();}else{editProfile();}
-  } else { renderOffresEditor(); editProfile(); }
+  } else { showOffresView(); editProfile(); }
 }
 function updateTopName(){const t=$("appTitle");if(t)t.textContent=$("nom").value||"Sponsoclub";}
 function showSummary(){$("sum-name").textContent=$("nom").value||"Mon club";$("sum-sub").textContent=((+$("lic").value||0)+" licenciés")+($("adr").value?(" · "+$("adr").value):"");if(clubLogo){$("sum-logo").src=clubLogo;$("sum-logo").style.display="block";}else{$("sum-logo").style.display="none";}$("profile-summary").style.display="block";$("profile-edit").style.display="none";updateTopName();}
@@ -381,7 +397,11 @@ function addOffre(){if(!clubOffres)clubOffres=JSON.parse(JSON.stringify(DEFAULT_
 function removeOffre(i){clubOffres.splice(i,1);renderOffresEditor();}
 function addCp(i){clubOffres[i].contreparties.push("");renderOffresEditor();}
 function removeCp(i,j){clubOffres[i].contreparties.splice(j,1);renderOffresEditor();}
-async function saveOffres(btn){if(!user)return;const bo=btn.innerHTML;btn.disabled=true;const {error}=await sb.from("profiles").upsert({id:user.id,offres:clubOffres,updated_at:new Date().toISOString()});btn.disabled=false;if(error){alert("Erreur: "+error.message);return;}btn.innerHTML='<i class="ti ti-check"></i> Enregistré';setTimeout(()=>btn.innerHTML=bo,1500);}
+async function saveOffres(btn){if(!user)return;btn.disabled=true;const {error}=await sb.from("profiles").upsert({id:user.id,offres:clubOffres,updated_at:new Date().toISOString()});btn.disabled=false;if(error){alert("Erreur: "+error.message);return;}showOffresView();}
+function renderOffresView(){const box=$("offres-view");if(!box)return;const list=clubOffres||DEFAULT_OFFRES;box.innerHTML=list.map(o=>`<div class="offre-view"><div class="onom">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="price">${(o.prix||0).toLocaleString('fr-FR')} €<span style="font-size:12px;color:var(--faint);font-weight:400"> /an</span></div>${(o.contreparties||[]).map(c=>`<div class="cp"><i class="ti ti-check"></i> ${(c||'').replace(/</g,'&lt;')}</div>`).join("")}</div>`).join("");}
+function showOffresView(){renderOffresView();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="grid";if(e)e.style.display="none";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="editOffres()"><i class="ti ti-edit"></i> Modifier les offres</button>';}
+function editOffres(){renderOffresEditor();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="none";if(e)e.style.display="block";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer</button>';}
+function switchTab(name){document.querySelectorAll(".tabpage").forEach(el=>{el.style.display=el.classList.contains("tab-"+name)?"":"none";});document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));window.scrollTo({top:0,behavior:"smooth"});}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
 function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
 function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const o=offreByName(pack);const mt=$("sp-montant");if(o&&o.prix&&(!mt.value||mt.dataset.auto==="1")){mt.value=o.prix;mt.dataset.auto="1";}}
