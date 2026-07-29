@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sponsoclub — Console admin</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{--bg:#f5f6f8;--surface:#fff;--surface2:#f0f2f5;--text:#1a1d21;--muted:#6b7280;--faint:#9ca3af;--border:#e5e7eb;--bstrong:#d1d5db;--accent:#3b4cd8;--accentbg:#eceefb;--green:#159169;--greenbg:#e2f4ee;--amber:#b5730f;--amberbg:#fbf0dd;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-size:14px}
+  .top{background:#14161c;color:#fff;padding:15px 24px;display:flex;align-items:center;gap:12px}
+  .top .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px}
+  .top h1{font-size:16px;font-weight:600}
+  .top .tag{margin-left:auto;font-size:12px;color:#9aa0b0}
+  .wrap{max-width:1180px;margin:0 auto;padding:24px}
+  input{padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px;width:100%}
+  button{font-family:inherit;font-size:13.5px;padding:9px 15px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+  button.ghost{background:var(--surface);color:var(--text);border-color:var(--bstrong)}
+  button:hover{filter:brightness(1.05)}
+  .login{max-width:360px;margin:8vh auto;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 24px;box-shadow:0 4px 20px rgba(16,24,40,.06)}
+  .login h2{font-size:17px;margin-bottom:16px;text-align:center}
+  .msg{font-size:13px;margin-top:12px;color:#a12;display:none}
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:22px}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+  .kpi .l{font-size:12.5px;color:var(--muted);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .kpi .v{font-size:26px;font-weight:600;letter-spacing:-.02em}
+  .kpi .s{font-size:12px;color:var(--faint);margin-top:3px}
+  .row2{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;margin-bottom:22px}
+  @media(max-width:820px){.row2{grid-template-columns:1fr}}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+  .panel h3{font-size:15px;margin-bottom:14px}
+  .funnel .f{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .funnel .fl{width:96px;font-size:13px;color:var(--muted)}
+  .funnel .fb{height:24px;border-radius:6px;background:var(--accent);min-width:24px}
+  .funnel .fn{font-size:13px;font-weight:600;width:36px}
+  table{width:100%;border-collapse:collapse;font-size:13.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border)}
+  th{font-size:12px;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
+  th:hover{color:var(--text)}
+  td.num,th.num{text-align:right}
+  tr:hover td{background:var(--surface2)}
+  .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+  h2.sec{font-size:18px}
+</style>
+</head>
+<body>
+<div class="top"><div class="logo"><i class="ti ti-trophy"></i></div><h1>Sponsoclub</h1><span class="tag">Console admin</span></div>
+
+<div id="login" class="login">
+  <h2>Console admin</h2>
+  <input id="tok" type="password" placeholder="Mot de passe admin" onkeydown="if(event.key==='Enter')enter()">
+  <button style="width:100%;justify-content:center;margin-top:12px" onclick="enter()">Accéder</button>
+  <div id="login-msg" class="msg"></div>
+</div>
+
+<div id="dash" class="wrap" style="display:none">
+  <div class="head">
+    <h2 class="sec">Pilotage de l'activité</h2>
+    <button class="ghost" onclick="load()"><i class="ti ti-refresh"></i> Actualiser</button>
+  </div>
+  <div class="metrics" id="metrics"></div>
+  <div class="row2">
+    <div class="panel"><h3>Évolution</h3><div style="position:relative;height:260px"><canvas id="chart"></canvas></div></div>
+    <div class="panel"><h3>Tunnel du pipeline</h3><div class="funnel" id="funnel"></div></div>
+  </div>
+  <div class="panel">
+    <div class="head"><h3 style="margin:0">Clubs</h3><span class="tag" id="clubcount" style="color:var(--faint)"></span></div>
+    <div style="overflow-x:auto"><table id="clubs"></table></div>
+  </div>
+  <p style="font-size:12px;color:var(--faint);margin-top:16px">MRR projeté = clubs × prix d'abonnement supposé (facturation non branchée). Sponsoring = montant réel signé, cumulé sur tous les clubs.</p>
+</div>
+
+<script>
+let TOKEN="", DATA=null, sortKey="sponsoring", sortDir=-1, chart=null;
+function enter(){TOKEN=document.getElementById("tok").value.trim();if(TOKEN)load();}
+async function load(){
+  const m=document.getElementById("login-msg");m.style.display="none";
+  try{
+    const r=await fetch("/api/admin?token="+encodeURIComponent(TOKEN));
+    const j=await r.json();
+    if(!r.ok||j.error)throw new Error(j.error||("HTTP "+r.status));
+    DATA=j;
+    document.getElementById("login").style.display="none";
+    document.getElementById("dash").style.display="block";
+    renderAll();
+  }catch(e){m.textContent=e.message;m.style.display="block";document.getElementById("login").style.display="block";document.getElementById("dash").style.display="none";}
+}
+function eur(n){return (Math.round(n||0)).toLocaleString("fr-FR")+" €";}
+function renderAll(){renderKpis();renderFunnel();renderChart();renderTable();}
+function renderKpis(){
+  const k=DATA.kpis;
+  const cards=[
+    ["Clubs inscrits",k.clubs,"ti-users-group",""],
+    ["Sponsoring total",eur(k.sponsoring),"ti-cash",k.signes+" sponsors signés"],
+    ["MRR projeté",eur(k.mrr),"ti-chart-line",k.clubs+" × "+k.prix+" €"],
+    ["Panier moyen",eur(k.panier),"ti-receipt","par sponsor signé"],
+    ["Taux de conversion",k.conversion+" %","ti-target","signés / dossiers"],
+    ["Emails envoyés",k.emails_envoyes,"ti-mail",k.taux_ouverture+" % ouverts"],
+  ];
+  document.getElementById("metrics").innerHTML=cards.map(c=>`<div class="kpi"><div class="l"><i class="ti ${c[2]}"></i> ${c[0]}</div><div class="v">${c[1]}</div>${c[3]?`<div class="s">${c[3]}</div>`:""}</div>`).join("");
+}
+function renderFunnel(){
+  const s=DATA.statuts, order=["À contacter","Contacté","RDV","Signé","Perdu"];
+  const max=Math.max(1,...order.map(o=>s[o]||0));
+  const col={"À contacter":"#9ca3af","Contacté":"#3b4cd8","RDV":"#b5730f","Signé":"#159169","Perdu":"#e24b4a"};
+  document.getElementById("funnel").innerHTML=order.map(o=>`<div class="f"><div class="fl">${o}</div><div class="fb" style="width:${Math.round((s[o]||0)/max*100)}%;background:${col[o]}"></div><div class="fn">${s[o]||0}</div></div>`).join("");
+}
+function renderChart(){
+  const t=DATA.timeline||[];
+  const labels=t.map(x=>x.mois), spon=t.map(x=>x.sponsoring), dos=t.map(x=>x.dossiers);
+  if(chart)chart.destroy();
+  chart=new Chart(document.getElementById("chart"),{
+    data:{labels,datasets:[
+      {type:"bar",label:"Sponsoring signé (€)",data:spon,backgroundColor:"#3b4cd8",borderRadius:5,yAxisID:"y"},
+      {type:"line",label:"Dossiers créés",data:dos,borderColor:"#159169",backgroundColor:"#159169",tension:.3,yAxisID:"y1"}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
+      scales:{y:{position:"left",ticks:{callback:v=>v+" €"}},y1:{position:"right",grid:{drawOnChartArea:false}}},
+      plugins:{legend:{labels:{boxWidth:12,font:{size:11}}}}}
+  });
+}
+function fmtDate(d){if(!d)return"—";const x=new Date(d);return x.toLocaleDateString("fr-FR",{day:"2-digit",month:"2-digit",year:"2-digit"});}
+function renderTable(){
+  const cols=[["nom","Club",0],["licencies","Licenciés",1],["dossiers","Dossiers",1],["signes","Signés",1],["sponsoring","Sponsoring",1],["last","Dernière activité",1]];
+  const clubs=[...DATA.clubs].sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(sortKey==="nom"||sortKey==="last"){x=(x||"");y=(y||"");return sortDir*(x<y?-1:x>y?1:0);}return sortDir*(( x||0)-(y||0));});
+  const th=cols.map(c=>`<th class="${c[2]?'num':''}" onclick="setSort('${c[0]}')">${c[1]}${sortKey===c[0]?(sortDir<0?" ▾":" ▴"):""}</th>`).join("");
+  const rows=clubs.map(c=>`<tr><td>${c.nom}</td><td class="num">${c.licencies}</td><td class="num">${c.dossiers}</td><td class="num">${c.signes}</td><td class="num">${eur(c.sponsoring)}</td><td class="num">${fmtDate(c.last)}</td></tr>`).join("");
+  document.getElementById("clubs").innerHTML="<thead><tr>"+th+"</tr></thead><tbody>"+(rows||'<tr><td colspan="6" style="color:var(--faint)">Aucun club.</td></tr>')+"</tbody>";
+  document.getElementById("clubcount").textContent=clubs.length+" clubs";
+}
+function setSort(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==="nom")?1:-1;}renderTable();}
+</script>
+</body>
+</html>
