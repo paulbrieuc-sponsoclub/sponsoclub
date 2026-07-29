@@ -139,8 +139,23 @@
     </div>
 
     <div class="sect">
-      <h2>Pipeline <span class="muted" id="pipcount"></span></h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <h2 style="margin:0">Pipeline <span class="muted" id="pipcount"></span></h2>
+        <button onclick="addPartner()"><i class="ti ti-plus"></i> Ajouter un partenaire</button>
+      </div>
       <div class="card" id="pipeline"><div class="empty">Chargement…</div></div>
+    </div>
+
+    <div class="sect">
+      <h2>Actions à mener <span class="muted" id="actcount"></span></h2>
+      <div class="card" style="padding:16px 18px">
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <input id="act-input" placeholder="Nouvelle action (ex. relancer le Garage Central)" style="flex:1;min-width:220px" onkeydown="if(event.key==='Enter')addAction()">
+          <input id="act-date" type="date" style="width:auto">
+          <button class="primary" onclick="addAction()"><i class="ti ti-plus"></i> Ajouter</button>
+        </div>
+        <div id="actions"><div class="empty">Chargement…</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -195,7 +210,7 @@ async function logout(){ await sb.auth.signOut(); location.reload(); }
 async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
-  await loadProfile(); await loadPipe();
+  await loadProfile(); await loadPipe(); loadActions();
 }
 async function loadProfile(){
   const {data}=await sb.from("profiles").select("*").eq("id",user.id).maybeSingle();
@@ -369,18 +384,72 @@ function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSave
     </div>
     <div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="genContract(${id},this)"><i class="ti ti-file-text"></i> Générer le contrat (IA)</button><button onclick="document.getElementById('dlg').close()">Fermer</button></div>
-    <div id="sp-contract" style="margin-top:14px"></div>`;
+    <div id="sp-contract" style="margin-top:14px"></div>
+    <div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>
+    <label style="font-weight:500;display:block;margin-bottom:8px"><i class="ti ti-cash"></i> Règlement du sponsoring</label>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
+      <div style="flex:1;min-width:220px"><label>Lien de paiement (Stripe, HelloAsso, virement…)</label><input id="sp-paylink" value="${(p.payment_link||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
+      <button id="sp-pay-btn" onclick="togglePaid(${id},this)">${p.payment_status==='Réglé'?'<i class="ti ti-rotate"></i> Marquer non réglé':'<i class="ti ti-check"></i> Marquer payé'}</button>
+    </div>
+    <div><span class="pill ${p.payment_status==='Réglé'?'green':'amber'}" id="sp-pay-status">${p.payment_status||'Non réglé'}${p.paid_at?(' · '+new Date(p.paid_at).toLocaleDateString('fr-FR')):''}</span>${p.payment_link?' <a href="'+p.payment_link+'" target="_blank" style="color:var(--accenttx);font-size:13px;margin-left:8px"><i class="ti ti-external-link"></i> ouvrir le lien</a>':''}</div>`;
   renderCps(pack);
-  if(p.contrat)renderContractBox(p.contrat,id);
+  if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
+async function togglePaid(id,btn){
+  const p=pipeData.find(x=>x.id===id);const now=p&&p.payment_status==="Réglé";
+  const ns=now?"Non réglé":"Réglé";const pa=now?null:new Date().toISOString();
+  const link=$("sp-paylink").value;
+  const {error}=await sb.from("pipeline").update({payment_status:ns,paid_at:pa,payment_link:link}).eq("id",id);
+  if(error){alert("Erreur: "+error.message);return;}
+  if(p){p.payment_status=ns;p.paid_at=pa;p.payment_link=link;}
+  const st=$("sp-pay-status");st.className="pill "+(ns==="Réglé"?"green":"amber");st.textContent=ns+(pa?(" · "+new Date(pa).toLocaleDateString("fr-FR")):"");
+  btn.innerHTML=ns==="Réglé"?'<i class="ti ti-rotate"></i> Marquer non réglé':'<i class="ti ti-check"></i> Marquer payé';
+  loadPipe();
+}
 async function saveSponsor(id){const cps={};document.querySelectorAll("#sp-cps input[type=checkbox]").forEach(cb=>{cps[cb.dataset.cp]=cb.checked;});
-  const row={statut:$("sp-statut").value,pack:$("sp-pack").value,montant:(+$("sp-montant").value||null),next_action:$("sp-action").value,notes:$("sp-notes").value,contreparties:cps};
+  const row={statut:$("sp-statut").value,pack:$("sp-pack").value,montant:(+$("sp-montant").value||null),next_action:$("sp-action").value,notes:$("sp-notes").value,contreparties:cps,payment_link:($("sp-paylink")?$("sp-paylink").value:null)};
   const {error}=await sb.from("pipeline").update(row).eq("id",id);
   if(error){alert("Erreur: "+error.message);return;}
   $("dlg").close();loadPipe();}
 async function setStatut(id,v){ await sb.from("pipeline").update({statut:v}).eq("id",id); }
 async function delPipe(id){ await sb.from("pipeline").delete().eq("id",id); loadPipe(); }
+function addPartner(){
+  const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
+  $("dlg-title").textContent="Ajouter un partenaire";
+  $("dlg-body").innerHTML=`
+    <p class="muted" style="margin-bottom:12px">Pour un sponsor que le club a déjà (ou un contact hors détection).</p>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px">
+      <div><label>Nom du partenaire</label><input id="np-name" placeholder="ex. Garage Central"></div>
+      <div><label>Catégorie</label><input id="np-cat" placeholder="ex. Automobile"></div>
+      <div><label>Statut</label><select id="np-statut">${opts.map(o=>`<option ${o==='Signé'?'selected':''}>${o}</option>`).join("")}</select></div>
+      <div><label>Pack</label><select id="np-pack">${["Bronze","Argent","Or"].map(o=>`<option ${o==='Argent'?'selected':''}>${o}</option>`).join("")}</select></div>
+      <div><label>Montant (€)</label><input id="np-montant" type="number" placeholder="ex. 800"></div>
+      <div><label>Email du contact</label><input id="np-email" type="email" placeholder="contact@..."></div>
+    </div>
+    <div style="margin-top:16px"><button class="primary" onclick="savePartner(this)"><i class="ti ti-plus"></i> Ajouter au pipeline</button></div>`;
+  $("dlg").showModal();
+}
+async function savePartner(btn){
+  const name=$("np-name").value.trim(); if(!name){alert("Le nom est requis.");return;}
+  btn.disabled=true;
+  const {error}=await sb.from("pipeline").insert({name,categorie:$("np-cat").value,statut:$("np-statut").value,pack:$("np-pack").value,montant:(+$("np-montant").value||null),email_to:$("np-email").value||null});
+  btn.disabled=false;
+  if(error){alert("Erreur: "+error.message);return;}
+  $("dlg").close(); loadPipe();
+}
+async function loadActions(){
+  const {data,error}=await sb.from("actions").select("*").order("fait",{ascending:true}).order("echeance",{ascending:true,nullsFirst:false}).order("created_at",{ascending:true});
+  const box=$("actions"); if(!box)return;
+  if(error){box.innerHTML='<div class="empty">Erreur: '+error.message+'</div>';return;}
+  const open=(data||[]).filter(a=>!a.fait).length;
+  $("actcount").textContent=data&&data.length?("· "+open+" à faire"):"";
+  if(!data||!data.length){box.innerHTML='<div class="empty">Aucune action. Ajoute ta première tâche ci-dessus.</div>';return;}
+  box.innerHTML=data.map(a=>`<div class="item"><input type="checkbox" ${a.fait?"checked":""} onchange="toggleAction(${a.id},this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;cursor:pointer"><div class="grow"><div class="t" style="${a.fait?'text-decoration:line-through;color:var(--faint)':''}">${(a.titre||'').replace(/</g,"&lt;")}</div>${a.echeance?`<div class="s"><i class="ti ti-calendar"></i> ${new Date(a.echeance).toLocaleDateString('fr-FR')}</div>`:""}</div><button onclick="delAction(${a.id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div>`).join("");
+}
+async function addAction(){const t=$("act-input").value.trim();if(!t)return;const d=$("act-date").value||null;const {error}=await sb.from("actions").insert({titre:t,echeance:d});if(error){alert("Erreur: "+error.message);return;}$("act-input").value="";$("act-date").value="";loadActions();}
+async function toggleAction(id,fait){await sb.from("actions").update({fait}).eq("id",id);loadActions();}
+async function delAction(id){await sb.from("actions").delete().eq("id",id);loadActions();}
 async function aiGenerate(type,data){
   const r=await fetch("/api/generate",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({type,data})});
   const j=await r.json().catch(()=>({error:"réponse invalide"}));
@@ -400,7 +469,7 @@ async function genContract(id,btn){const p=pipeData.find(x=>x.id===id);const box
   const cps=contrepartiesFor(pack).filter(c=>{const cb=document.querySelector('#sp-cps input[data-cp="'+c+'"]');return cb&&cb.checked;});
   try{const t=await aiGenerate("contrat",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,montant:$("sp-montant").value,contreparties:cps.length?cps:contrepartiesFor(pack)});
     await sb.from("pipeline").update({contrat:t}).eq("id",id);const pp=pipeData.find(x=>x.id===id);if(pp)pp.contrat=t;
-    renderContractBox(t,id);}
+    renderContractBox(t,id,false);}
   catch(e){box.innerHTML='<div style="color:#a12;font-size:13px">IA indisponible : '+e.message+'</div>';}
   finally{if(btn){btn.disabled=false;btn.innerHTML=bo;}}}
 async function aiEmailFiche(id,btn){const p=pipeData.find(x=>x.id===id);const bo=btn?btn.innerHTML:"";if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Rédaction…';}
@@ -423,7 +492,8 @@ async function sendEmail(id,btn){const to=$("sp-email").value.trim(),subject=$("
   catch(e){alert("Envoi impossible : "+e.message);}
   finally{btn.disabled=false;btn.innerHTML=bo;}}
 function dlDoc(taId,name){const ta=document.getElementById(taId);const esc=ta.value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+esc+'</body></html>';const blob=new Blob(["﻿",html],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(name||"document")+".doc";document.body.appendChild(a);a.click();a.remove();}
-function renderContractBox(text,id){document.getElementById("sp-contract").innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${(text||"").replace(/</g,"&lt;")}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button><button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button><span id="ct-status" style="color:var(--green);font-size:12px"></span></div>`;}
+function renderContractBox(text,id,signed){document.getElementById("sp-contract").innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${(text||"").replace(/</g,"&lt;")}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button><button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button><span id="ct-status" style="color:var(--green);font-size:12px"></span></div><label class="cp" style="max-width:240px;margin-top:10px"><input type="checkbox" ${signed?"checked":""} onchange="setSigned(${id},this.checked)"><span>Contrat signé</span></label>`;}
+async function setSigned(id,val){const {error}=await sb.from("pipeline").update({contrat_signe:val}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat_signe=val;if(error)alert("Erreur: "+error.message);}
 async function saveContract(id){const ta=document.getElementById("ct-out");const {error}=await sb.from("pipeline").update({contrat:ta.value}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat=ta.value;const st=document.getElementById("ct-status");if(st){if(error){st.style.color="#a12";st.textContent="Erreur : "+error.message;}else{st.style.color="var(--green)";st.textContent="Enregistré ✓";}}}
 function demo(){return [
   {name:"Garage Central",cl:"Automobile",ic:"ti-car",dist:1.2,sc:4,ville:"Villeneuve"},
