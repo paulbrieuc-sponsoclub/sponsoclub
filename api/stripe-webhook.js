@@ -26,6 +26,16 @@ module.exports = async (req, res) => {
 
     if (type === 'checkout.session.completed') {
       const sess = await stripeGet('checkout/sessions/' + obj.id);
+      // Paiement d'un sponsor au club (lien de paiement) → marquer la fiche « Réglé »
+      const pipeId = (sess.metadata && sess.metadata.pipeline_id) || (obj.metadata && obj.metadata.pipeline_id);
+      if (sess.mode === 'payment' && pipeId) {
+        await fetch(url + '/rest/v1/pipeline?id=eq.' + encodeURIComponent(pipeId), {
+          method: 'PATCH', headers: h,
+          body: JSON.stringify({ payment_status: 'Réglé', paid_at: new Date().toISOString(), statut: 'Signé' })
+        });
+        res.status(200).json({ received: true });
+        return;
+      }
       const clubId = sess.client_reference_id;
       const subId = sess.subscription;
       const custId = sess.customer;
