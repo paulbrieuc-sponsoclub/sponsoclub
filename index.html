@@ -986,7 +986,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
         <p class="muted" style="font-size:13px;margin-bottom:10px">Génère un lien de paiement du montant du sponsoring à envoyer au partenaire. Quand il paie, le statut passe <b>automatiquement</b> à « Réglé ».</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="primary" onclick="genPayLink(${id},this)"><i class="ti ti-link"></i> Générer un lien de paiement</button>
-          <button onclick="emailPayLink(${id})"><i class="ti ti-mail"></i> Envoyer par email</button>
+          <button onclick="emailPayLink(${id},this)"><i class="ti ti-mail"></i> Envoyer par email</button>
         </div>
       </div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
@@ -1015,15 +1015,43 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
-function emailPayLink(id){
+async function emailPayLink(id,btn){
   const p=pipeData.find(x=>x.id===id);if(!p)return;
   const link=($("sp-paylink")&&$("sp-paylink").value)||p.payment_link;
   if(!link){alert("Génère d'abord le lien de paiement.");return;}
+  const to=(($("sp-email")&&$("sp-email").value.trim())||p.email_to||"").trim();
+  if(!to){alert("Renseigne l'email du contact (onglet Mail).");return;}
+  if(!confirm("Envoyer le lien de paiement à "+to+" ?"))return;
+  if(await overEmailQuota())return;
+  const bo=btn?btn.innerHTML:"";if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';}
   const nom=$("nom").value||"le club";
-  if($("sp-email")&&!$("sp-email").value)$("sp-email").value=p.email_to||"";
-  if($("sp-subject"))$("sp-subject").value="Votre partenariat avec "+nom+" — lien de paiement";
-  if($("sp-body"))$("sp-body").value="Bonjour,\n\nMerci pour votre soutien au "+nom+" ! Voici le lien pour régler votre partenariat en ligne, en toute sécurité :\n"+link+"\n\nUne fois le paiement effectué, tout est enregistré automatiquement de notre côté.\n\nBien à vous,\n"+nom;
-  spTab('mail');
+  const acc=clubPrimary||"#3b4cd8";
+  const montant=(+p.montant)?(+p.montant).toLocaleString('fr-FR')+" €":"";
+  const subject="Votre partenariat avec "+nom+(montant?" — "+montant:"");
+  const bodyTxt="Merci pour votre soutien au "+nom+" ! Réglez votre partenariat en ligne : "+link;
+  try{
+    let eid=null;try{const {data:er}=await sb.from("emails").insert({club_id:clubId,pipeline_id:id,direction:"out",to_email:to,subject,body:bodyTxt}).select("id").maybeSingle();if(er)eid=er.id;}catch(_){}
+    const track=location.origin+"/api/track?id="+id+(eid?"&e="+eid:"");
+    const esc=s=>(s||"").replace(/</g,"&lt;");
+    const html=`<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;font-size:15px;line-height:1.6;color:#222">
+      <div style="background:${acc};color:#fff;padding:20px 24px;border-radius:12px 12px 0 0;font-size:18px;font-weight:bold">${esc(nom)}</div>
+      <div style="border:1px solid #eceef1;border-top:none;border-radius:0 0 12px 12px;padding:24px">
+        <p>Bonjour,</p>
+        <p>Un grand merci pour votre soutien au <b>${esc(nom)}</b> ! Vous pouvez régler votre partenariat en ligne, en toute sécurité, en un clic :</p>
+        <p style="text-align:center;margin:26px 0"><a href="${link}" style="background:${acc};color:#fff;text-decoration:none;padding:14px 30px;border-radius:10px;font-weight:bold;font-size:16px;display:inline-block">${montant?("Régler "+montant):"Régler mon partenariat"}</a></p>
+        <p style="color:#666;font-size:13px">Paiement sécurisé via Stripe. Une fois réglé, tout est enregistré automatiquement de notre côté — vous n'avez rien d'autre à faire.</p>
+        <p style="color:#999;font-size:12px;margin-top:20px">${esc(nom)}</p>
+      </div>
+      <img src="${track}" width="1" height="1" style="display:none" alt="">
+    </div>`;
+    const r=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to,subject,html,fromName:nom,replyToken:id})});
+    const j=await r.json().catch(()=>({error:"réponse invalide"}));if(!r.ok||j.error)throw new Error(j.error||"HTTP "+r.status);
+    await sb.from("pipeline").update({email_to:to,email_sent_at:new Date().toISOString()}).eq("id",id);
+    if(p){p.email_to=to;p.email_sent_at=new Date().toISOString();}
+    alert("Lien de paiement envoyé à "+to+" ✅");
+    loadSponsorMails(id);loadPipe();
+  }catch(e){alert("Envoi impossible : "+e.message);}
+  finally{if(btn){btn.disabled=false;btn.innerHTML=bo;}}
 }
 async function genPayLink(id,btn){
   const p=pipeData.find(x=>x.id===id);
