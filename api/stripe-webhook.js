@@ -46,10 +46,12 @@ module.exports = async (req, res) => {
       const sub = await stripeGet('subscriptions/' + obj.id);
       const item = sub.items && sub.items.data && sub.items.data[0];
       const plan = item && item.price && item.price.recurring ? item.price.recurring.interval : null;
+      const deleted = (type === 'customer.subscription.deleted');
       const fields = {
-        subscription_status: (type === 'customer.subscription.deleted') ? 'canceled' : mapStatus(sub.status),
+        subscription_status: deleted ? 'canceled' : mapStatus(sub.status),
         subscription_plan: (plan === 'year' ? 'annuel' : 'mensuel'),
         subscription_until: sub.current_period_end ? new Date(sub.current_period_end * 1000).toISOString() : null,
+        subscription_cancel: deleted ? false : !!sub.cancel_at_period_end,
         stripe_sub_id: sub.id
       };
       await setProfile('stripe_customer_id=eq.' + encodeURIComponent(sub.customer), fields);
