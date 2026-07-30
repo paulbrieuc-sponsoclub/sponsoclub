@@ -22,6 +22,9 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
   label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
   input:not([type=checkbox]),select{width:100%;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px;background:var(--surface)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:8px;padding:0;border:none;border-radius:6px;background:#e5e7eb;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3);cursor:pointer}
   .cp{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:13.5px;color:var(--text)}
   .cp:hover{background:var(--surface2)}
   .cp input{width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);margin:0;cursor:pointer}
@@ -215,20 +218,28 @@
     </div>
 
     <div class="sect tabpage tab-sponsors">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-        <h2 style="margin:0">Recherche de sponsoring <span class="muted" id="rescount"></span></h2>
-        <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter les entreprises</button>
+      <h2 style="margin:0 0 12px">Recherche de partenaires <span class="muted" id="rescount"></span></h2>
+
+      <div class="card" style="padding:16px 18px;margin-bottom:14px">
+        <label style="font-weight:600;color:var(--text);margin-bottom:12px;font-size:13.5px"><span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;align-items:center;justify-content:center;font-size:12px;margin-right:6px">1</span> Rayon autour du stade</label>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+          <input type="range" id="f-dist" min="1" max="50" step="1" value="10" oninput="updateRayon(this.value)" style="flex:1;min-width:200px">
+          <span id="rayon-val" style="font-weight:700;font-size:19px;min-width:70px;text-align:right;color:var(--accent)">10 km</span>
+          <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:6px"><span>1 km</span><span>50 km</span></div>
       </div>
+
       <div id="status" class="muted" style="margin-bottom:10px"></div>
-      <div id="filters" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
-        <span class="muted" style="font-size:12px">Critères :</span>
-        <select id="f-dist" onchange="run()" style="width:auto"><option value="3">Rayon : 3 km</option><option value="5">Rayon : 5 km</option><option value="10" selected>Rayon : 10 km</option><option value="15">Rayon : 15 km</option><option value="20">Rayon : 20 km</option></select>
+
+      <div id="filters" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
+        <span class="muted" style="font-size:12px"><span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;align-items:center;justify-content:center;font-size:12px;margin-right:2px">2</span> Affiner :</span>
         <select id="f-secteur" onchange="applyFilters()" style="width:auto"><option value="">Secteur : tous</option></select>
         <select id="f-taille" onchange="applyFilters()" style="width:auto"><option value="">Taille : toutes</option><option value="micro">Micro (0-9 salariés)</option><option value="petite">Petite (10-49)</option><option value="grande">Moyenne / Grande (50+)</option></select>
         <select id="f-match" onchange="applyFilters()" style="width:auto"><option value="">Match : tous</option><option value="4">Match élevé</option><option value="3">Match moyen et +</option></select>
         <input id="f-search" placeholder="Rechercher un nom…" oninput="applyFilters()" style="flex:1;min-width:150px">
       </div>
-      <div class="card" id="results"><div class="empty">Choisis un rayon puis clique sur « Détecter les entreprises » (l'adresse du club se règle dans l'onglet Profil).</div></div>
+      <div class="card" id="results"><div class="empty">Règle le rayon puis clique sur « Détecter » (l'adresse du club se règle dans l'onglet Profil).</div></div>
     </div>
 
     <div class="sect tabpage tab-sponsors">
@@ -327,7 +338,7 @@ async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
   await joinClub();
-  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); switchTab("sponsors");
+  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); if($("f-dist"))updateRayon($("f-dist").value); switchTab("sponsors");
 }
 async function joinClub(){
   clubId=user.id; // repli par défaut
@@ -525,7 +536,7 @@ function normalize(list,clat,clon){const seen={};return list.map(e=>{const et=(e
     else if(/^47\.1/.test(naf)){const A=(et.adresse||"").toUpperCase();const G=[["INTERMARCHE","Intermarché"],["CARREFOUR","Carrefour"],["E.LECLERC","E.Leclerc"],["LECLERC","E.Leclerc"],["SUPER U","Super U"],["HYPER U","Hyper U"],["MAGASINS U","Magasins U"],["LIDL","Lidl"],["ALDI","Aldi"],["CASINO","Casino"],["MONOPRIX","Monoprix"],["AUCHAN","Auchan"],["NETTO","Netto"],["CORA","Cora"],["FRANPRIX","Franprix"],["GEANT","Géant"]];for(const g of G){if(A.includes(g[0])){disp=g[1]+(ville?(" "+cn(ville)):"");break;}}}
     return{name:disp,cl,ic,sc,dist,ville:cn(ville),effectif:(et.tranche_effectif_salarie||e.tranche_effectif_salarie||"")};}).filter(x=>{if(!x||x.sc<1)return false;const k=x.name.toLowerCase();if(seen[k])return false;seen[k]=1;return true;}).sort((a,b)=>b.sc-a.sc||((a.dist??99)-(b.dist??99))).slice(0,500);}
 async function run(){
-  const adr=$("adr").value.trim();const rad=Math.min(20,Math.max(1,+($("f-dist")?$("f-dist").value:0)||10));
+  const adr=$("adr").value.trim();const rad=Math.min(50,Math.max(1,+($("f-dist")?$("f-dist").value:0)||10));
   if(!adr){$("status").innerHTML='<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> Renseigne d\'abord l\'adresse du stade dans l\'onglet Profil, puis enregistre.';return;}
   $("status").innerHTML='<span class="spin"></span> Géocodage…'; $("results").innerHTML='<div class="empty"><span class="spin"></span></div>';
   try{const g=await geocode(adr);$("status").innerHTML='<span class="spin"></span> Recherche des entreprises autour de « '+g.label+' »…';
@@ -536,6 +547,7 @@ async function run(){
   catch(err){prospects=demo();$("status").innerHTML='<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> API indisponible ('+err.message+') — démonstration chargée.';}
   curPage=1;setupFilters();applyFilters();
 }
+function updateRayon(v){const el=$("f-dist");if(!el)return;if($("rayon-val"))$("rayon-val").textContent=v+" km";const pct=((v-el.min)/(el.max-el.min))*100;el.style.background="linear-gradient(to right,var(--accent) "+pct+"%,#e5e7eb "+pct+"%)";}
 function setupFilters(){const sel=$("f-secteur");if(sel){const cats=[...new Set(prospects.map(p=>p.cl).filter(Boolean))].sort();sel.innerHTML='<option value="">Secteur : tous</option>'+cats.map(c=>`<option>${c}</option>`).join("");}const fb=$("filters");if(fb)fb.style.display="flex";}
 function sizeBucket(e){if(!e)return"";if(["00","01","02","03"].indexOf(e)>=0)return"micro";if(["11","12"].indexOf(e)>=0)return"petite";return"grande";}
 function applyFilters(){const q=($("f-search").value||"").toLowerCase().trim();const dmax=+$("f-dist").value||0;const sec=$("f-secteur").value;const taille=$("f-taille").value;const mmin=+$("f-match").value||0;
