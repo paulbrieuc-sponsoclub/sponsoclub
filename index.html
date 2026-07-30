@@ -397,7 +397,7 @@ async function loadProfile(){
     if($("p-entourage"))$("p-entourage").value=data.viz_entourage||2;
     clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
     if($("p-relance"))$("p-relance").checked=data.relance_auto!==false;
-    clubSub={status:data.subscription_status||null,plan:data.subscription_plan||null,until:data.subscription_until||null};
+    clubSub={status:data.subscription_status||null,plan:data.subscription_plan||null,until:data.subscription_until||null,cancel:data.subscription_cancel===true};
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
     applyTheme(); updateTopLogo(); updateTopName(); showOffresView();
@@ -844,10 +844,23 @@ function renderSub(){
     </div>
     <p class="muted" style="font-size:12px;margin-top:14px;text-align:center"><i class="ti ti-lock"></i> Paiement sécurisé via Stripe · 15 jours d'essai gratuit · sans engagement</p>
     <p class="muted" style="font-size:11.5px;margin-top:4px;text-align:center">Essai : rayon de recherche jusqu'à ${TRIAL_RADIUS_MAX} km, ${TRIAL_EMAIL_MAX} emails inclus. Illimité une fois abonné.</p>`;
-  if(st==='active'){box.innerHTML=`<div style="background:var(--greenbg);border:1px solid #bfe3d4;border-radius:14px;padding:16px 18px;margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px"><i class="ti ti-circle-check"></i></div><div><div style="font-weight:600;font-size:15px">Abonnement actif${s.plan?' · '+s.plan:''}</div><div class="muted" style="font-size:13px">${until?('Prochaine échéance le '+until):'Merci pour votre confiance 🙌'}</div></div></div>`;}
-  else if(st==='trialing'){box.innerHTML=`<div style="background:var(--amberbg);border:1px solid #f0dcb8;border-radius:14px;padding:16px 18px;margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:44px;height:44px;border-radius:50%;background:var(--amber);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px"><i class="ti ti-gift"></i></div><div><div style="font-weight:600;font-size:15px">Essai gratuit en cours${s.plan?' · formule '+s.plan:''}</div><div class="muted" style="font-size:13px">${until?('Votre abonnement démarrera le '+until+'. Rien n\'est prélevé d\'ici là.'):'Profitez de toutes les fonctionnalités.'}</div></div></div>`;}
+  const cancelRow=s.cancel
+    ?`<div style="margin-top:12px;font-size:13px;color:var(--amber)"><i class="ti ti-alert-circle"></i> Résiliation programmée${until?(' — accès jusqu\'au '+until):''}. <a href="#" onclick="cancelSub('resume');return false" style="color:var(--accenttx);font-weight:600">Réactiver</a></div>`
+    :`<div style="margin-top:12px"><a href="#" onclick="cancelSub('cancel');return false" style="color:var(--muted);font-size:12.5px">Résilier mon abonnement</a></div>`;
+  if(st==='active'){box.innerHTML=`<div style="background:var(--greenbg);border:1px solid #bfe3d4;border-radius:14px;padding:16px 18px;margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px"><i class="ti ti-circle-check"></i></div><div><div style="font-weight:600;font-size:15px">Abonnement actif${s.plan?' · '+s.plan:''}</div><div class="muted" style="font-size:13px">${until?('Prochaine échéance le '+until):'Merci pour votre confiance 🙌'}</div></div></div>`+cancelRow;}
+  else if(st==='trialing'){box.innerHTML=`<div style="background:var(--amberbg);border:1px solid #f0dcb8;border-radius:14px;padding:16px 18px;margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:44px;height:44px;border-radius:50%;background:var(--amber);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px"><i class="ti ti-gift"></i></div><div><div style="font-weight:600;font-size:15px">Essai gratuit en cours${s.plan?' · formule '+s.plan:''}</div><div class="muted" style="font-size:13px">${until?('Votre abonnement démarrera le '+until+'. Rien n\'est prélevé d\'ici là.'):'Profitez de toutes les fonctionnalités.'}</div></div></div>`+cancelRow;}
   else if(st==='past_due'){box.innerHTML=`<p style="margin:6px 0 2px"><span class="pill amber"><i class="ti ti-alert-triangle"></i> Paiement en attente</span></p><p class="muted" style="font-size:13px;margin-bottom:4px">Un souci est survenu sur le règlement. Relancez un paiement ci-dessous.</p>`+plans;}
   else{box.innerHTML=`<p style="font-size:14px;margin:8px 0 2px">Activez Sponsoclub et transformez votre recherche de partenaires. <b>Rentabilisé dès le premier sponsor signé.</b></p>`+plans;}
+}
+async function cancelSub(action){
+  if(action!=='resume'&&!confirm("Résilier l'abonnement ? Vous gardez l'accès jusqu'à la fin de la période en cours."))return;
+  try{
+    const {data}=await sb.auth.getSession();const tok=data&&data.session&&data.session.access_token;
+    const r=await fetch("/api/cancel",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({clubId,token:tok,action})});
+    const j=await r.json();if(!r.ok||j.error)throw new Error(j.error||"Erreur");
+    clubSub.cancel=(action!=='resume');renderSub();
+    alert(action==='resume'?"Abonnement réactivé.":"Résiliation prise en compte. Vous gardez l'accès jusqu'à la fin de la période.");
+  }catch(e){alert("Erreur : "+e.message);}
 }
 async function subscribe(plan,btn){
   const bo=btn?btn.innerHTML:"";if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Redirection…';}
