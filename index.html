@@ -36,6 +36,8 @@
   .item:last-child{border-bottom:none}
   .ic{width:38px;height:38px;border-radius:9px;background:var(--accentbg);color:var(--accenttx);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
   .grow{flex:1;min-width:0}.t{font-size:14px;font-weight:500}.s{font-size:12.5px;color:var(--muted);margin-top:1px}
+  .acts{display:flex;align-items:center;gap:8px;margin-left:auto}
+  .statut-sel{width:128px}
   .pill{font-size:11px;padding:3px 9px;border-radius:20px;white-space:nowrap}
   .pill.green{background:var(--greenbg);color:var(--green)}.pill.amber{background:var(--amberbg);color:var(--amber)}.pill.gray{background:var(--surface2);color:var(--muted)}
   .muted{color:var(--muted);font-size:12.5px}
@@ -73,6 +75,28 @@
   .msg{font-size:12.5px;margin-top:10px;padding:8px 10px;border-radius:8px;display:none}
   .msg.err{background:#fdecec;color:#a12; display:block}.msg.ok{background:var(--greenbg);color:var(--green);display:block}
   .field{margin-bottom:12px}
+  /* ---- Mobile ---- */
+  @media(max-width:640px){
+    .wrap{padding:14px}
+    .top{padding:12px 14px;gap:8px}
+    .top h1{font-size:15px}
+    .top .me{gap:8px;font-size:12px}
+    .top .me span{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .card{padding:15px 15px}
+    .item{flex-wrap:wrap;gap:10px}
+    .item .ic{width:34px;height:34px;font-size:16px}
+    .acts{width:100%;margin-left:0;margin-top:2px}
+    .acts .primary{flex:0 0 auto}
+    .statut-sel{flex:1;width:auto}
+    #kpis{grid-template-columns:1fr 1fr;gap:10px}
+    .kpi{padding:13px 14px}
+    .kpi-v{font-size:22px}
+    .tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .tabbtn{padding:11px 12px;font-size:13.5px;white-space:nowrap}
+    .packs{grid-template-columns:1fr 1fr}
+    .dlg-b{padding:16px 16px}
+    .dlg-h{padding:14px 16px}
+  }
 </style>
 </head>
 <body>
@@ -532,9 +556,11 @@ async function loadPipe(){
   const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
   $("pipeline").innerHTML=pipeData.map(p=>`<div class="item"><div class="ic"><i class="ti ti-building-store"></i></div>
     <div class="grow"><div class="t">${p.name}</div><div class="s">${p.categorie||""}${p.pack?" · "+p.pack:""}${p.montant?" · "+p.montant+" €":""}${p.next_action?' · <span style="color:var(--amber)">→ '+p.next_action+'</span>':""}</div></div>
-    <button class="primary" onclick="openSponsor(${p.id})"><i class="ti ti-settings"></i> Gérer</button>
-    <select onchange="setStatut(${p.id},this.value)" style="width:128px">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select>
-    <button onclick="delPipe(${p.id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div>`).join("");
+    <div class="acts">
+      <button class="primary" onclick="openSponsor(${p.id})"><i class="ti ti-settings"></i> Gérer</button>
+      <select onchange="setStatut(${p.id},this.value)" class="statut-sel">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select>
+      <button onclick="delPipe(${p.id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button>
+    </div></div>`).join("");
 }
 function renderKpis(){
   const signes=pipeData.filter(p=>p.statut==="Signé");
