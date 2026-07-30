@@ -77,6 +77,13 @@
   .sp-tabbtn:hover{background:transparent;color:var(--text)}
   .sp-tabbtn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
   .sp-page{display:none}.sp-page.on{display:block}
+  .offre-pick{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .opick{border:1px solid var(--bstrong);border-radius:11px;padding:12px 13px;cursor:pointer;transition:.12s;background:var(--surface)}
+  .opick:hover{border-color:var(--accent)}
+  .opick.sel{border:2px solid var(--accent);background:var(--accentbg);padding:11px 12px}
+  .opick .on{font-weight:600;font-size:13.5px}
+  .opick .op{color:var(--accenttx);font-weight:700;font-size:16px;margin:1px 0 7px}
+  .opick .oc{font-size:11.5px;color:var(--muted);line-height:1.5}
   /* auth */
   #auth{max-width:400px;margin:8vh auto;padding:0 20px}
   .authcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 24px;box-shadow:0 4px 20px rgba(16,24,40,.06)}
@@ -806,7 +813,10 @@ function switchTab(name){document.querySelectorAll(".tabpage").forEach(el=>{el.s
 function spTab(n){document.querySelectorAll(".sp-page").forEach(el=>el.classList.toggle("on",el.dataset.p===n));document.querySelectorAll(".sp-tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.p===n));const b=document.querySelector(".dlg-b");if(b)b.scrollTop=0;}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
 function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
-function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const o=offreByName(pack);const mt=$("sp-montant");if(o&&o.prix&&(!mt.value||mt.dataset.auto==="1")){mt.value=o.prix;mt.dataset.auto="1";}}
+function renderOffrePick(){const box=$("sp-offres");if(!box)return;const cur=$("sp-pack")?$("sp-pack").value:"";const list=clubOffres||DEFAULT_OFFRES;
+  box.innerHTML=list.map(o=>`<div class="opick ${o.nom===cur?'sel':''}" onclick="selectPack('${(o.nom||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')"><div class="on">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="op">${(+o.prix||0).toLocaleString('fr-FR')} €<span style="font-size:11px;color:var(--faint);font-weight:400"> /an</span></div><div class="oc">${(o.contreparties||[]).slice(0,5).map(c=>'• '+(c||'').replace(/</g,'&lt;')).join('<br>')}</div></div>`).join("");
+}
+function selectPack(nom){if($("sp-pack"))$("sp-pack").value=nom;const o=offreByName(nom);const mt=$("sp-montant");if(o&&o.prix&&mt&&(!mt.value||mt.dataset.auto==="1")){mt.value=o.prix;mt.dataset.auto="1";}renderOffrePick();renderCps(nom);}
 function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||((clubOffres||DEFAULT_OFFRES)[0]||{}).nom||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
   $("dlg-title").textContent="Gérer · "+p.name;
   $("dlg-body").innerHTML=`
@@ -819,15 +829,17 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
     </div>
 
     <div class="sp-page on" data-p="offre">
-      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
         <div><label>Statut</label><select id="sp-statut" onchange="document.getElementById('sp-hint').textContent=actionHint(this.value)">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select></div>
-        <div><label>Pack</label><select id="sp-pack" onchange="packChanged()">${(clubOffres||DEFAULT_OFFRES).map(o=>`<option ${pack===o.nom?"selected":""}>${o.nom}</option>`).join("")}</select></div>
-        <div><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
         <div><label>Prochaine action</label><input id="sp-action" value="${(p.next_action||'').replace(/"/g,'&quot;')}" placeholder="ex. relancer le 15/09"></div>
       </div>
-      <div style="background:var(--accentbg);color:var(--accenttx);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px"><i class="ti ti-bulb"></i> <span id="sp-hint">${actionHint(p.statut)}</span></div>
+      <div style="background:var(--accentbg);color:var(--accenttx);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:16px"><i class="ti ti-bulb"></i> <span id="sp-hint">${actionHint(p.statut)}</span></div>
+      <input type="hidden" id="sp-pack" value="${(pack||'').replace(/"/g,'&quot;')}">
+      <label style="margin-bottom:8px">Offre choisie <span class="muted">— cliquez pour sélectionner</span></label>
+      <div id="sp-offres" class="offre-pick"></div>
+      <div style="max-width:220px;margin-bottom:16px"><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
       ${(p.phone||p.website)?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:14px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-world"></i> site web</a>`:""}</div>`:""}
-      <label style="margin-bottom:6px">Contreparties à livrer</label>
+      <label style="margin-bottom:6px">Contreparties à livrer <span class="muted">— cochez au fur et à mesure</span></label>
       <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
       <label>Notes</label>
       <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
@@ -874,7 +886,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <p class="muted" style="font-size:13px;margin-bottom:12px">Une page publique aux couleurs du club — formule, contreparties livrées et visibilité estimée. À envoyer au sponsor comme preuve de ce qu'il reçoit.</p>
       <div id="sp-share"></div>
     </div>`;
-  renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);spTab(tab||'offre');
+  renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);spTab(tab||'offre');
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
