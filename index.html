@@ -679,7 +679,7 @@ function renderToday(){
   if(paie.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-cash" style="color:var(--green)"></i> Paiements en attente (${paie.length})</h3><div class="card">${paie.map(p=>line("ti-receipt","#159169",p.name,(p.montant?p.montant.toLocaleString('fr-FR')+" € — ":"")+"en attente de règlement",p.id,'paiement')).join("")}</div></div>`);
   // Bilans / renouvellements — seulement le dernier mois avant la fin du partenariat
   const soon=now+30*DAY;
-  const bilans=pipeData.filter(p=>p.statut==="Signé"&&!p.renewal_at&&p.partner_end&&new Date(p.partner_end).getTime()<=soon);
+  const bilans=pipeData.filter(p=>p.contrat_signe===true&&!p.renewal_at&&p.partner_end&&new Date(p.partner_end).getTime()<=soon);
   if(bilans.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-award" style="color:#7a3ff2"></i> Bilans & renouvellements (${bilans.length})</h3><div class="card">${bilans.map(p=>{const fin=new Date(p.partner_end);const jrs=Math.round((fin.getTime()-now)/DAY);const sub=jrs<0?("terminé depuis le "+fin.toLocaleDateString('fr-FR')):("se termine le "+fin.toLocaleDateString('fr-FR')+(jrs<=30?" (dans "+jrs+" j)":""));return `<div class="item"><div class="ic" style="background:#7a3ff21f;color:#7a3ff2"><i class="ti ti-award"></i></div><div class="grow"><div class="t">${(p.name||'').replace(/</g,"&lt;")}</div><div class="s">${sub} — envoyer le bilan + proposer le renouvellement</div></div><button class="primary" onclick="prepareBilan(${p.id})"><i class="ti ti-send"></i> Bilan</button></div>`;}).join("")}</div></div>`);
   // 3. Prochaines actions planifiées sur un sponsor
   const na=pipeData.filter(p=>p.statut!=="Signé"&&p.next_action&&(""+p.next_action).trim());
@@ -944,7 +944,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
       <label>Notes</label>
       <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>${p.statut==='Signé'?`<button onclick="prepareBilan(${id})"><i class="ti ti-award"></i> Bilan &amp; renouvellement</button>`:""}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>${p.contrat_signe===true?`<button onclick="prepareBilan(${id})"><i class="ti ti-award"></i> Bilan &amp; renouvellement</button>`:""}</div>
     </div>
 
     <div class="sp-page" data-p="contrat">
