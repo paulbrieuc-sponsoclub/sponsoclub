@@ -940,9 +940,13 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <div id="sp-offres" class="offre-pick"></div>
       <div style="max-width:220px;margin-bottom:16px"><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
       ${(p.phone||p.website)?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:14px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-world"></i> site web</a>`:""}</div>`:""}
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+        <label style="margin:0">Contreparties à livrer</label>
+        <span class="pill ${p.payment_status==='Réglé'?'green':'amber'}">${p.payment_status==='Réglé'?'<i class="ti ti-check"></i> Payé':'<i class="ti ti-clock"></i> Paiement en attente'}</span>
+      </div>
       ${p.payment_status==='Réglé'
-        ?`<label style="margin-bottom:6px">Contreparties à livrer <span class="muted">— cochez au fur et à mesure</span></label><div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>`
-        :`<div class="muted" style="font-size:13px;background:var(--surface2);border-radius:10px;padding:11px 13px;margin-bottom:14px"><i class="ti ti-lock"></i> Les contreparties à livrer apparaîtront une fois le paiement encaissé (onglet Paiement).</div>`}
+        ?`<div class="muted" style="font-size:12px;margin:-4px 0 8px">Cochez au fur et à mesure de la livraison.</div><div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>`
+        :`<div class="muted" style="font-size:13px;background:var(--surface2);border-radius:10px;padding:11px 13px;margin-bottom:14px"><i class="ti ti-lock"></i> Les contreparties se débloquent une fois le paiement encaissé. <a href="#" onclick="spTab('paiement');return false" style="color:var(--accenttx);font-weight:600">Aller au paiement →</a></div>`}
       <label>Notes</label>
       <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>${p.contrat_signe===true?`<button onclick="prepareBilan(${id})"><i class="ti ti-award"></i> Bilan &amp; renouvellement</button>`:""}</div>
@@ -1173,8 +1177,27 @@ async function loadSponsorMails(id){
   }).join("")+'</div>';
 }
 function dlDoc(taId,name){const ta=document.getElementById(taId);const esc=ta.value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+esc+'</body></html>';const blob=new Blob(["﻿",html],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(name||"document")+".doc";document.body.appendChild(a);a.click();a.remove();}
-function renderContractBox(text,id,signed){document.getElementById("sp-contract").innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${(text||"").replace(/</g,"&lt;")}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button><button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button><span id="ct-status" style="color:var(--green);font-size:12px"></span></div><label class="cp" style="max-width:240px;margin-top:10px"><input type="checkbox" ${signed?"checked":""} onchange="setSigned(${id},this.checked)"><span>Contrat signé</span></label>`;}
-async function setSigned(id,val){const upd={contrat_signe:val,signe_at:(val?new Date().toISOString():null)};if(val)upd.statut="Signé";const {error}=await sb.from("pipeline").update(upd).eq("id",id);if(error){alert("Erreur: "+error.message);return;}const p=pipeData.find(x=>x.id===id);if(p){p.contrat_signe=val;p.signe_at=upd.signe_at;if(val)p.statut="Signé";}if(val&&$("sp-statut"))$("sp-statut").value="Signé";loadPipe();}
+function renderContractBox(text,id,signed){
+  const esc=(text||"").replace(/</g,"&lt;");
+  const dl=`<button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button>`;
+  const box=document.getElementById("sp-contract");if(!box)return;
+  if(signed){
+    box.innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat signé <span class="muted">— lecture seule</span></label><textarea id="ct-out" readonly style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6;background:var(--surface2)">${esc}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">${dl}<span class="pill green"><i class="ti ti-lock"></i> Contrat signé — verrouillé</span></div>`;
+  }else{
+    box.innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${esc}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button>${dl}<span id="ct-status" style="color:var(--green);font-size:12px"></span></div><label class="cp" style="max-width:320px;margin-top:10px"><input type="checkbox" onchange="if(this.checked){if(confirm('Marquer le contrat comme signé ? Cette action est définitive et verrouille le contrat.'))setSigned(${id});else this.checked=false;}"><span>Marquer le contrat comme signé <b>(définitif)</b></span></label>`;
+  }
+}
+async function setSigned(id){
+  const ta=$("ct-out");const contrat=ta?ta.value:undefined;
+  const upd={contrat_signe:true,signe_at:new Date().toISOString(),statut:"Signé"};
+  if(contrat!==undefined)upd.contrat=contrat;
+  const {error}=await sb.from("pipeline").update(upd).eq("id",id);
+  if(error){alert("Erreur: "+error.message);return;}
+  const p=pipeData.find(x=>x.id===id);if(p){p.contrat_signe=true;p.signe_at=upd.signe_at;p.statut="Signé";if(contrat!==undefined)p.contrat=contrat;}
+  if($("sp-statut"))$("sp-statut").value="Signé";
+  renderContractBox(contrat||(p&&p.contrat)||"",id,true);
+  loadPipe();
+}
 async function saveContract(id){const ta=document.getElementById("ct-out");const {error}=await sb.from("pipeline").update({contrat:ta.value}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat=ta.value;const st=document.getElementById("ct-status");if(st){if(error){st.style.color="#a12";st.textContent="Erreur : "+error.message;}else{st.style.color="var(--green)";st.textContent="Enregistré ✓";}}}
 function spaceUrl(tok){return location.origin+"/espace.html#"+tok;}
 function renderShare(id){const box=document.getElementById("sp-share");if(!box)return;const p=pipeData.find(x=>x.id===id);
