@@ -8,7 +8,7 @@ module.exports = async (req, res) => {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!key) { res.status(500).json({ error: 'SUPABASE_SERVICE_ROLE_KEY manquante.' }); return; }
   const h = { apikey: key, Authorization: 'Bearer ' + key };
-  const PRIX = 29;
+  const PRIX = 39.99;
 
   // Connexion à un compte club : génère un lien de connexion (magic link)
   const asEmail = (req.query && req.query.as) || '';
