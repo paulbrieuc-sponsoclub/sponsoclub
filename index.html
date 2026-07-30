@@ -781,7 +781,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
         <button onclick="aiEmailFiche(${id},this)"><i class="ti ti-sparkles"></i> Rédiger avec l'IA</button>
         <button class="primary" onclick="sendEmail(${id},this)"><i class="ti ti-send"></i> Envoyer</button>
         <button onclick="prepareRelance(${id})"><i class="ti ti-clock"></i> Programmer une relance</button>
-        <span id="sp-email-status" style="font-size:12px;color:var(--muted)">${p.email_sent_at?('Envoyé le '+new Date(p.email_sent_at).toLocaleDateString('fr-FR')+(p.email_opened_at?' · ouvert ✓':'')):''}</span>
+        <span id="sp-email-status" style="font-size:12px;color:var(--muted)">${p.email_sent_at?('Dernier mail envoyé le '+new Date(p.email_sent_at).toLocaleDateString('fr-FR')+(p.email_opened_at?' · ouvert ✓':'')):''}</span>
       </div>
       <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
         <div><label>Email du contact</label><input id="sp-email" type="email" value="${(p.email_to||'').replace(/"/g,'&quot;')}" placeholder="contact@commerce.fr"></div>
