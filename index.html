@@ -804,7 +804,9 @@ async function sendBilan(id,btn){
   }catch(e){alert("Envoi impossible : "+e.message);btn.disabled=false;btn.innerHTML=bo;}
 }
 const TRIAL_EMAIL_MAX=20, TRIAL_RADIUS_MAX=10, PRO_RADIUS_MAX=25;
-function isPro(){return !!(clubSub&&clubSub.status==='active');}
+const SUPER_ADMINS=["paulbrieuc@gmail.com"];
+function isSuperAdmin(){return !!(user&&SUPER_ADMINS.includes((user.email||"").toLowerCase()));}
+function isPro(){return isSuperAdmin()||!!(clubSub&&clubSub.status==='active');}
 function applyPlanLimits(){
   const max=isPro()?PRO_RADIUS_MAX:TRIAL_RADIUS_MAX;
   const sl=$("f-dist");
@@ -822,6 +824,7 @@ async function overEmailQuota(){
 function renderSub(){
   const box=$("sub-box");if(!box)return;const s=clubSub||{};const st=s.status;
   const until=s.until?new Date(s.until).toLocaleDateString('fr-FR'):"";
+  if(isSuperAdmin()){box.innerHTML=`<div style="background:#7a3ff21a;border:1px solid #cbb6f5;border-radius:14px;padding:16px 18px;margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:44px;height:44px;border-radius:50%;background:#7a3ff2;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px"><i class="ti ti-shield-check"></i></div><div><div style="font-weight:600;font-size:15px">Compte super-admin — accès complet</div><div class="muted" style="font-size:13px">Mode démo : toutes les fonctionnalités débloquées, sans abonnement.</div></div></div>`;return;}
   const feats=["Détection illimitée d'entreprises locales","Dossiers &amp; emails rédigés par l'IA","Relances automatiques &amp; suivi des ouvertures","Espace sponsor + reçu fiscal","Comptes équipe (jusqu'à 5 membres)"];
   const fl=feats.map(f=>`<div class="pf"><i class="ti ti-check"></i> <span>${f}</span></div>`).join("");
   const plans=`
