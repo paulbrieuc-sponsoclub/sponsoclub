@@ -168,7 +168,8 @@
           <span class="muted" style="padding-bottom:9px">L'appli se met aux couleurs du club</span>
         </div>
       </div>
-      <label class="cp" style="max-width:560px;margin-bottom:16px"><input type="checkbox" id="p-mecenat" checked><span>Club éligible au mécénat — les sponsors bénéficient d'une <b>réduction d'impôt de 60 %</b> sur leur don (association d'intérêt général)</span></label>
+      <label class="cp" style="max-width:560px;margin-bottom:10px"><input type="checkbox" id="p-mecenat" checked><span>Club éligible au mécénat — les sponsors bénéficient d'une <b>réduction d'impôt de 60 %</b> sur leur don (association d'intérêt général)</span></label>
+      <label class="cp" style="max-width:560px;margin-bottom:16px"><input type="checkbox" id="p-relance" checked><span><b>Suggestions de relance</b> — l'appli te propose dans « Aujourd'hui » les prospects à relancer (contactés sans réponse). Tu valides le message et la date, rien ne part sans ton accord.</span></label>
       <div class="grid">
         <div><label>Nom du club</label><input id="nom"></div>
         <div><label>Adresse du stade</label><input id="adr"></div>
@@ -300,7 +301,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
-let clubId=null, myRole="owner", clubMembers=[], clubDocs=[], actionsData=[];
+let clubId=null, myRole="owner", clubMembers=[], clubDocs=[], actionsData=[], relancesData=[];
 const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
 let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
@@ -346,7 +347,7 @@ async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
   await joinClub();
-  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); if($("f-dist"))updateRayon($("f-dist").value); switchTab("today");
+  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); if($("f-dist"))updateRayon($("f-dist").value); switchTab("today");
 }
 async function joinClub(){
   clubId=user.id; // repli par défaut
@@ -368,6 +369,7 @@ async function loadProfile(){
     if($("p-portee"))$("p-portee").value=(data.viz_portee!=null?data.viz_portee:40);
     if($("p-entourage"))$("p-entourage").value=data.viz_entourage||2;
     clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
+    if($("p-relance"))$("p-relance").checked=data.relance_auto!==false;
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
     applyTheme(); updateTopLogo(); updateTopName(); showOffresView();
@@ -380,7 +382,7 @@ function editProfile(){$("profile-summary").style.display="none";$("profile-edit
 async function saveProfile(){
   const row={id:clubId||user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
     licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,
-    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,mecenat:($("p-mecenat")?$("p-mecenat").checked:true),
+    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,mecenat:($("p-mecenat")?$("p-mecenat").checked:true),relance_auto:($("p-relance")?$("p-relance").checked:true),
     viz_matchs:(+($("p-matchs")&&$("p-matchs").value)||15),viz_posts:(+($("p-posts")&&$("p-posts").value)||20),viz_portee:(+($("p-portee")&&$("p-portee").value)||40),viz_entourage:(+($("p-entourage")&&$("p-entourage").value)||2),
     updated_at:new Date().toISOString()};
   clubMecenat=row.mecenat;
@@ -626,9 +628,13 @@ function renderToday(){
   const g=$("today-greet");if(g)g.textContent="À faire aujourd'hui"+(nom?" · "+nom:"");
   const secs=[];
   const line=(icon,color,title,sub,id,tab)=>`<div class="item"><div class="ic" style="background:${color}22;color:${color}"><i class="ti ${icon}"></i></div><div class="grow"><div class="t">${title}</div>${sub?`<div class="s">${sub}</div>`:""}</div><button class="primary" onclick="openSponsor(${id},'${tab||'offre'}')"><i class="ti ti-arrow-right"></i> Ouvrir</button></div>`;
-  // 1. Relances à faire (contacté depuis > 5 jours, pas de réponse détectée)
-  const relances=pipeData.filter(p=>p.statut==="Contacté"&&p.email_sent_at&&(now-new Date(p.email_sent_at).getTime()>5*DAY));
-  if(relances.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-mail-forward" style="color:var(--amber)"></i> Relances à faire (${relances.length})</h3><div class="card">${relances.map(p=>{const j=Math.round((now-new Date(p.email_sent_at).getTime())/DAY);return line("ti-building-store","#b5730f",p.name,"Contacté il y a "+j+" jours, sans réponse",p.id,'mail');}).join("")}</div></div>`);
+  // 1. Relances programmées (validées par le club, en attente d'envoi)
+  const prog=relancesData.filter(r=>r.status==="programmé");
+  if(prog.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-clock-hour-4" style="color:var(--accent)"></i> Relances programmées (${prog.length})</h3><div class="card">${prog.map(r=>{const p=pipeData.find(x=>x.id===r.pipeline_id)||{};const d=r.scheduled_for?new Date(r.scheduled_for).toLocaleDateString('fr-FR'):"";return `<div class="item"><div class="ic" style="background:#3b4cd822;color:#3b4cd8"><i class="ti ti-mail-forward"></i></div><div class="grow"><div class="t">${(p.name||'Partenaire').replace(/</g,"&lt;")}</div><div class="s">Relance prévue le ${d}</div></div><div class="acts"><button onclick="sendRelanceRow(${r.id},this)"><i class="ti ti-send"></i> Envoyer</button><button onclick="cancelRelance(${r.id})" aria-label="Annuler" style="padding:8px"><i class="ti ti-x"></i></button></div></div>`;}).join("")}</div></div>`);
+  // 2. Relances à préparer (contacté > 5 jours, pas de réponse, pas déjà programmée)
+  const progIds=new Set(prog.map(r=>r.pipeline_id));
+  const relances=pipeData.filter(p=>p.statut==="Contacté"&&p.email_sent_at&&(now-new Date(p.email_sent_at).getTime()>5*DAY)&&!progIds.has(p.id));
+  if(relances.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-mail-forward" style="color:var(--amber)"></i> Relances à préparer (${relances.length})</h3><div class="card">${relances.map(p=>{const j=Math.round((now-new Date(p.email_sent_at).getTime())/DAY);return `<div class="item"><div class="ic" style="background:#b5730f22;color:#b5730f"><i class="ti ti-building-store"></i></div><div class="grow"><div class="t">${(p.name||'').replace(/</g,"&lt;")}</div><div class="s">Contacté il y a ${j} jours, sans réponse</div></div><button class="primary" onclick="prepareRelance(${p.id})"><i class="ti ti-mail-forward"></i> Préparer la relance</button></div>`;}).join("")}</div></div>`);
   // 2. Paiements en attente (signé, pas réglé)
   const paie=pipeData.filter(p=>p.statut==="Signé"&&p.payment_status!=="Réglé");
   if(paie.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-cash" style="color:var(--green)"></i> Paiements à encaisser (${paie.length})</h3><div class="card">${paie.map(p=>line("ti-receipt","#159169",p.name,(p.montant?p.montant.toLocaleString('fr-FR')+" € — ":"")+"à encaisser",p.id,'paiement')).join("")}</div></div>`);
@@ -639,6 +645,74 @@ function renderToday(){
   const taches=actionsData.filter(a=>!a.fait&&a.echeance&&new Date(a.echeance).getTime()<=endToday.getTime());
   if(taches.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-checklist" style="color:var(--accent)"></i> Tâches du jour (${taches.length})</h3><div class="card">${taches.map(a=>`<div class="item"><input type="checkbox" onchange="toggleAction(${a.id},this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;cursor:pointer"><div class="grow"><div class="t">${(a.titre||'').replace(/</g,"&lt;")}</div><div class="s"><i class="ti ti-calendar"></i> ${new Date(a.echeance).toLocaleDateString('fr-FR')}</div></div></div>`).join("")}</div></div>`);
   box.innerHTML=secs.length?secs.join(""):'<div class="card"><div class="empty"><i class="ti ti-mood-smile" style="font-size:30px;color:var(--green)"></i><div style="margin-top:8px">Rien d\'urgent aujourd\'hui. Beau travail 👌</div><div style="font-size:13px;margin-top:4px">Va dans <b>Prospection</b> pour détecter de nouveaux partenaires.</div></div></div>';
+}
+async function loadRelances(){
+  if(!clubId)return;
+  const {data}=await sb.from("relances").select("*").eq("status","programmé").order("scheduled_for",{ascending:true});
+  relancesData=data||[];renderToday();
+}
+function relanceTemplate(p){const nom=$("nom").value||"le club";return {subject:"Re: "+(p.email_subject||("Partenariat avec "+nom)),body:`Bonjour,\n\nJe me permets de revenir vers vous au sujet d'un éventuel partenariat avec ${nom}. Peut-être n'avez-vous pas eu le temps de regarder mon précédent message ?\n\nJe serais ravi d'en échanger quelques minutes, quand cela vous arrange.\n\nBien à vous,\n${nom}`};}
+function prepareRelance(id){
+  const p=pipeData.find(x=>x.id===id);if(!p)return;
+  const t=relanceTemplate(p);const today=new Date().toISOString().slice(0,10);
+  $("dlg-title").textContent="Relance · "+p.name;
+  $("dlg-body").innerHTML=`
+    <p class="muted" style="margin-bottom:12px">Vérifie le message et choisis la date d'envoi. Rien ne part sans ta validation.</p>
+    <label>Destinataire</label><input id="rl-to" value="${(p.email_to||'').replace(/"/g,'&quot;')}" placeholder="email du contact">
+    <label style="margin-top:10px">Objet</label><input id="rl-subject" value="${t.subject.replace(/"/g,'&quot;')}">
+    <label style="margin-top:10px">Message</label>
+    <textarea id="rl-body" style="width:100%;min-height:160px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13.5px;line-height:1.6">${t.body.replace(/</g,"&lt;")}</textarea>
+    <label style="margin-top:10px">Date d'envoi</label><input type="date" id="rl-date" min="${today}" value="${today}" style="width:auto">
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="primary" onclick="sendRelanceNow(${id},this)"><i class="ti ti-send"></i> Envoyer maintenant</button>
+      <button onclick="scheduleRelance(${id},this)"><i class="ti ti-clock"></i> Programmer à cette date</button>
+      <button onclick="document.getElementById('dlg').close()">Annuler</button>
+    </div>`;
+  $("dlg").showModal();
+}
+async function sendRelanceNow(id,btn){
+  const to=$("rl-to").value.trim(),subject=$("rl-subject").value.trim(),body=$("rl-body").value.trim();
+  if(!to||!body){alert("Renseigne le destinataire et le message.");return;}
+  const bo=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';
+  try{
+    let eid=null;try{const {data:er}=await sb.from("emails").insert({club_id:clubId,pipeline_id:id,direction:"out",to_email:to,subject,body}).select("id").maybeSingle();if(er)eid=er.id;}catch(_){}
+    const track=location.origin+"/api/track?id="+id+(eid?"&e="+eid:"");
+    const html=body.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>")+'<img src="'+track+'" width="1" height="1" style="display:none" alt="">';
+    const r=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to,subject,html,fromName:$("nom").value||"Sponsoclub",replyToken:id})});
+    const j=await r.json().catch(()=>({error:"réponse invalide"}));if(!r.ok||j.error)throw new Error(j.error||"HTTP "+r.status);
+    await sb.from("pipeline").update({email_sent_at:new Date().toISOString(),last_relance_at:new Date().toISOString()}).eq("id",id);
+    $("dlg").close();loadPipe();
+  }catch(e){alert("Envoi impossible : "+e.message);btn.disabled=false;btn.innerHTML=bo;}
+}
+async function scheduleRelance(id,btn){
+  const to=$("rl-to").value.trim(),subject=$("rl-subject").value.trim(),body=$("rl-body").value.trim(),date=$("rl-date").value;
+  if(!to||!body){alert("Renseigne le destinataire et le message.");return;}
+  if(!date){alert("Choisis une date d'envoi.");return;}
+  const today=new Date().toISOString().slice(0,10);
+  if(date<=today){return sendRelanceNow(id,btn);}
+  btn.disabled=true;
+  const {error}=await sb.from("relances").insert({club_id:clubId,pipeline_id:id,to_email:to,subject,body,scheduled_for:date,status:"programmé"});
+  if(error){alert("Erreur : "+error.message);btn.disabled=false;return;}
+  $("dlg").close();loadRelances();
+}
+async function sendRelanceRow(rid,btn){
+  const r=relancesData.find(x=>x.id===rid);if(!r)return;
+  if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}
+  try{
+    let eid=null;try{const {data:er}=await sb.from("emails").insert({club_id:r.club_id,pipeline_id:r.pipeline_id,direction:"out",to_email:r.to_email,subject:r.subject,body:r.body}).select("id").maybeSingle();if(er)eid=er.id;}catch(_){}
+    const track=location.origin+"/api/track?id="+r.pipeline_id+(eid?"&e="+eid:"");
+    const html=(r.body||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>")+'<img src="'+track+'" width="1" height="1" style="display:none" alt="">';
+    const rr=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to:r.to_email,subject:r.subject,html,fromName:$("nom").value||"Sponsoclub",replyToken:r.pipeline_id})});
+    const j=await rr.json().catch(()=>({error:"réponse invalide"}));if(!rr.ok||j.error)throw new Error(j.error||"HTTP "+rr.status);
+    await sb.from("relances").update({status:"envoyé",sent_at:new Date().toISOString()}).eq("id",rid);
+    await sb.from("pipeline").update({email_sent_at:new Date().toISOString(),last_relance_at:new Date().toISOString()}).eq("id",r.pipeline_id);
+    loadRelances();loadPipe();
+  }catch(e){alert("Envoi impossible : "+e.message);if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-send"></i> Envoyer';}}
+}
+async function cancelRelance(rid){
+  if(!confirm("Annuler cette relance programmée ?"))return;
+  await sb.from("relances").update({status:"annulé"}).eq("id",rid);
+  loadRelances();
 }
 function renderKpis(){
   const signes=pipeData.filter(p=>p.statut==="Signé");
