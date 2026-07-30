@@ -908,7 +908,7 @@ function addMecenatOffre(){if(!clubOffres)clubOffres=JSON.parse(JSON.stringify(D
 function switchTab(name){document.querySelectorAll(".tabpage").forEach(el=>{el.style.display=el.classList.contains("tab-"+name)?"":"none";});document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));window.scrollTo({top:0,behavior:"smooth"});}
 function spTab(n){document.querySelectorAll(".sp-page").forEach(el=>el.classList.toggle("on",el.dataset.p===n));document.querySelectorAll(".sp-tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.p===n));const b=document.querySelector(".dlg-b");if(b)b.scrollTop=0;}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
-function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
+function renderCps(pack){const b=$("sp-cps");if(!b)return;b.innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
 function shortCp(c){c=(c||'').trim();
   const rules=[[/^logo sur le maillot/i,'Logo maillot'],[/^logo sur le short/i,'Logo short'],[/^logo sur le site/i,'Logo site'],[/^logo sur l['’]affiche/i,'Affiche saison'],[/^panneau/i,'Panneau stade'],[/^b[âa]che/i,'Bâche stade'],[/^invitation vip/i,'Invitation VIP'],[/^un match parrain/i,'Match parrainé'],[/^citation dans la newsletter/i,'Newsletter'],[/^mention au micro/i,'Micro au stade'],[/^mise en avant/i,'Tous supports'],[/re[çc]u fiscal/i,'Reçu fiscal −60 %'],[/^nom cit/i,'Cité mécène'],[/^remerciement/i,'Remerciement réseaux']];
   for(const [re,rep] of rules){if(re.test(c))return rep;}
@@ -940,8 +940,9 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <div id="sp-offres" class="offre-pick"></div>
       <div style="max-width:220px;margin-bottom:16px"><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
       ${(p.phone||p.website)?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:14px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-world"></i> site web</a>`:""}</div>`:""}
-      <label style="margin-bottom:6px">Contreparties à livrer <span class="muted">— cochez au fur et à mesure</span></label>
-      <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
+      ${p.payment_status==='Réglé'
+        ?`<label style="margin-bottom:6px">Contreparties à livrer <span class="muted">— cochez au fur et à mesure</span></label><div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>`
+        :`<div class="muted" style="font-size:13px;background:var(--surface2);border-radius:10px;padding:11px 13px;margin-bottom:14px"><i class="ti ti-lock"></i> Les contreparties à livrer apparaîtront une fois le paiement encaissé (onglet Paiement).</div>`}
       <label>Notes</label>
       <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>${p.contrat_signe===true?`<button onclick="prepareBilan(${id})"><i class="ti ti-award"></i> Bilan &amp; renouvellement</button>`:""}</div>
@@ -1002,8 +1003,10 @@ async function togglePaid(id,btn){
   btn.innerHTML=ns==="Réglé"?'<i class="ti ti-rotate"></i> Marquer non réglé':'<i class="ti ti-check"></i> Marquer payé';
   loadPipe();
 }
-async function saveSponsor(id){const cps={};document.querySelectorAll("#sp-cps input[type=checkbox]").forEach(cb=>{cps[cb.dataset.cp]=cb.checked;});
-  const row={statut:$("sp-statut").value,pack:$("sp-pack").value,montant:(+$("sp-montant").value||null),next_action:$("sp-action").value,notes:$("sp-notes").value,contreparties:cps,payment_link:($("sp-paylink")?$("sp-paylink").value:null),partner_start:($("sp-start")&&$("sp-start").value)||null,partner_end:($("sp-end")&&$("sp-end").value)||null};
+async function saveSponsor(id){
+  const row={statut:$("sp-statut").value,pack:$("sp-pack").value,montant:(+$("sp-montant").value||null),next_action:$("sp-action").value,notes:$("sp-notes").value,payment_link:($("sp-paylink")?$("sp-paylink").value:null),partner_start:($("sp-start")&&$("sp-start").value)||null,partner_end:($("sp-end")&&$("sp-end").value)||null};
+  const cpsEl=$("sp-cps");
+  if(cpsEl){const cps={};cpsEl.querySelectorAll("input[type=checkbox]").forEach(cb=>{cps[cb.dataset.cp]=cb.checked;});row.contreparties=cps;}
   const {error}=await sb.from("pipeline").update(row).eq("id",id);
   if(error){alert("Erreur: "+error.message);return;}
   $("dlg").close();loadPipe();}
