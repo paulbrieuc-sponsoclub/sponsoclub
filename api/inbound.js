@@ -29,14 +29,24 @@ module.exports = async (req, res) => {
     if (!text && resendKey && (d.email_id || d.id)) {
       try {
         const rid = d.email_id || d.id;
-        const rr = await fetch('https://api.resend.com/emails/' + rid, { headers: { Authorization: 'Bearer ' + resendKey } });
+        const rr = await fetch('https://api.resend.com/emails/receiving/' + rid, { headers: { Authorization: 'Bearer ' + resendKey } });
         const rj = await rr.json();
-        text = rj.text || rj.html || text;
-        subject = rj.subject || subject;
-        from = from || rj.from || '';
+        let t = rj.text;
+        if (!t && rj.html) {
+          t = String(rj.html)
+            .replace(/<style[\s\S]*?<\/style>/gi, '')
+            .replace(/<br\s*\/?>/gi, '\n').replace(/<\/p>/gi, '\n')
+            .replace(/<[^>]+>/g, '')
+            .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/&#39;/g, "'").replace(/&quot;/gi, '"');
+        }
+        if (t) text = t;
+        if (rj.subject) subject = rj.subject;
+        if (!from && rj.from) from = Array.isArray(rj.from) ? rj.from[0] : rj.from;
       } catch (e) {}
     }
-    if (!text) text = '(Contenu de la réponse non disponible — payload : ' + JSON.stringify(d).slice(0, 1500) + ')';
+    // Ne garder que la nouvelle réponse (couper l'historique cité)
+    if (text) text = text.split(/\n[^\n]*(?:a écrit|wrote)\s*:/i)[0].replace(/\n{3,}/g, '\n\n').trim();
+    if (!text) text = '(Réponse reçue — contenu non récupéré)';
 
     if (!key) { res.status(200).json({ ok: true, note: 'stockage indisponible' }); return; }
     const h = { apikey: key, Authorization: 'Bearer ' + key, 'content-type': 'application/json', Prefer: 'return=minimal' };
