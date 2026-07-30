@@ -25,7 +25,9 @@ module.exports = async (req, res) => {
         nom: p.club_nom || 'Le club', sport: p.sport || '', adresse: p.adresse || '', ville: (p.adresse || '').split(',').slice(-1)[0].trim(),
         licencies: p.licencies || 0, spectateurs: p.spectateurs || 0, reseaux: p.reseaux || 0,
         logo: p.logo || null, primary: p.couleur_primaire || '#3b4cd8', secondary: p.couleur_secondaire || '#e0b400',
-        mecenat: p.mecenat !== false
+        mecenat: p.mecenat !== false,
+        viz_matchs: p.viz_matchs || 15, viz_posts: p.viz_posts || 20,
+        viz_portee: (p.viz_portee != null ? p.viz_portee : 40), viz_entourage: p.viz_entourage || 2
       },
       sponsor: {
         name: row.name || 'Partenaire', pack: row.pack || '', montant: +row.montant || 0,
