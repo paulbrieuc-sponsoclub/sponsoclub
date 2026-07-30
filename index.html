@@ -261,7 +261,8 @@
           <span id="rayon-val" style="font-weight:600;font-size:15px;min-width:58px;text-align:center;color:var(--accenttx);background:var(--accentbg);padding:5px 10px;border-radius:20px">10 km</span>
           <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:8px"><span>1 km</span><span>25 km</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:8px"><span>1 km</span><span id="rayon-max-lbl">25 km</span></div>
+        <div id="rayon-hint" class="muted" style="font-size:12px;margin-top:8px;color:var(--amber)"></div>
       </div>
 
       <div id="status" class="muted" style="margin-bottom:10px"></div>
@@ -372,8 +373,8 @@ async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
   await joinClub();
-  await loadProfile(); renderSub(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); loadNotifs(); if($("f-dist"))updateRayon($("f-dist").value); switchTab("today");
-  if(new URLSearchParams(location.search).get("sub")==="success"){setTimeout(()=>loadProfile().then(renderSub),2500);alert("Merci ! Votre abonnement est en cours d'activation. Le statut se met à jour dans quelques secondes.");history.replaceState({},"",location.pathname);}
+  await loadProfile(); renderSub(); applyPlanLimits(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); loadNotifs(); switchTab("today");
+  if(new URLSearchParams(location.search).get("sub")==="success"){setTimeout(()=>loadProfile().then(()=>{renderSub();applyPlanLimits();}),2500);alert("Merci ! Votre abonnement est en cours d'activation. Le statut se met à jour dans quelques secondes.");history.replaceState({},"",location.pathname);}
 }
 async function joinClub(){
   clubId=user.id; // repli par défaut
@@ -720,6 +721,7 @@ function prepareRelance(id){
 async function sendRelanceNow(id,btn){
   const to=$("rl-to").value.trim(),subject=$("rl-subject").value.trim(),body=$("rl-body").value.trim();
   if(!to||!body){alert("Renseigne le destinataire et le message.");return;}
+  if(await overEmailQuota())return;
   const bo=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';
   try{
     let eid=null;try{const {data:er}=await sb.from("emails").insert({club_id:clubId,pipeline_id:id,direction:"out",to_email:to,subject,body}).select("id").maybeSingle();if(er)eid=er.id;}catch(_){}
@@ -744,6 +746,7 @@ async function scheduleRelance(id,btn){
 }
 async function sendRelanceRow(rid,btn){
   const r=relancesData.find(x=>x.id===rid);if(!r)return;
+  if(await overEmailQuota())return;
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span>';}
   try{
     let eid=null;try{const {data:er}=await sb.from("emails").insert({club_id:r.club_id,pipeline_id:r.pipeline_id,direction:"out",to_email:r.to_email,subject:r.subject,body:r.body}).select("id").maybeSingle();if(er)eid=er.id;}catch(_){}
@@ -787,6 +790,7 @@ async function prepareBilan(id){
 async function sendBilan(id,btn){
   const to=$("bl-to").value.trim(),subject=$("bl-subject").value.trim(),body=$("bl-body").value.trim();
   if(!to||!body){alert("Renseigne le destinataire et le message.");return;}
+  if(await overEmailQuota())return;
   const bo=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';
   try{
     let eid=null;try{const {data:er}=await sb.from("emails").insert({club_id:clubId,pipeline_id:id,direction:"out",to_email:to,subject,body}).select("id").maybeSingle();if(er)eid=er.id;}catch(_){}
@@ -798,6 +802,22 @@ async function sendBilan(id,btn){
     const p=pipeData.find(x=>x.id===id);if(p)p.renewal_at=new Date().toISOString();
     $("dlg").close();loadPipe();
   }catch(e){alert("Envoi impossible : "+e.message);btn.disabled=false;btn.innerHTML=bo;}
+}
+const TRIAL_EMAIL_MAX=20, TRIAL_RADIUS_MAX=10, PRO_RADIUS_MAX=25;
+function isPro(){return !!(clubSub&&clubSub.status==='active');}
+function applyPlanLimits(){
+  const max=isPro()?PRO_RADIUS_MAX:TRIAL_RADIUS_MAX;
+  const sl=$("f-dist");
+  if(sl){sl.max=max;if(+sl.value>max)sl.value=max;updateRayon(sl.value);}
+  if($("rayon-max-lbl"))$("rayon-max-lbl").textContent=max+" km";
+  const hint=$("rayon-hint");
+  if(hint)hint.innerHTML=isPro()?"":'<i class="ti ti-lock"></i> Essai limité à '+TRIAL_RADIUS_MAX+' km — <a href="#" onclick="switchTab(\'profil\');return false" style="color:var(--accenttx)">abonnez-vous</a> pour aller jusqu\'à '+PRO_RADIUS_MAX+' km.';
+}
+async function overEmailQuota(){
+  if(isPro())return false;
+  const {count}=await sb.from("emails").select("id",{count:"exact",head:true}).eq("direction","out");
+  if((count||0)>=TRIAL_EMAIL_MAX){alert("Limite de l'essai atteinte : "+TRIAL_EMAIL_MAX+" emails envoyés.\\n\\nPassez à l'abonnement (onglet Profil du club) pour envoyer sans limite.");return true;}
+  return false;
 }
 function renderSub(){
   const box=$("sub-box");if(!box)return;const s=clubSub||{};const st=s.status;
@@ -822,7 +842,8 @@ function renderSub(){
         <div class="pcta"><button class="primary" onclick="subscribe('year',this)"><i class="ti ti-credit-card"></i> Choisir l'annuel</button></div>
       </div>
     </div>
-    <p class="muted" style="font-size:12px;margin-top:14px;text-align:center"><i class="ti ti-lock"></i> Paiement sécurisé via Stripe · 1 mois d'essai gratuit · sans engagement</p>`;
+    <p class="muted" style="font-size:12px;margin-top:14px;text-align:center"><i class="ti ti-lock"></i> Paiement sécurisé via Stripe · 15 jours d'essai gratuit · sans engagement</p>
+    <p class="muted" style="font-size:11.5px;margin-top:4px;text-align:center">Essai : rayon de recherche jusqu'à ${TRIAL_RADIUS_MAX} km, ${TRIAL_EMAIL_MAX} emails inclus. Illimité une fois abonné.</p>`;
   if(st==='active'){box.innerHTML=`<div style="background:var(--greenbg);border:1px solid #bfe3d4;border-radius:14px;padding:16px 18px;margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px"><i class="ti ti-circle-check"></i></div><div><div style="font-weight:600;font-size:15px">Abonnement actif${s.plan?' · '+s.plan:''}</div><div class="muted" style="font-size:13px">${until?('Prochaine échéance le '+until):'Merci pour votre confiance 🙌'}</div></div></div>`;}
   else if(st==='trialing'){box.innerHTML=`<div style="background:var(--amberbg);border:1px solid #f0dcb8;border-radius:14px;padding:16px 18px;margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:44px;height:44px;border-radius:50%;background:var(--amber);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px"><i class="ti ti-gift"></i></div><div><div style="font-weight:600;font-size:15px">Essai gratuit en cours${s.plan?' · formule '+s.plan:''}</div><div class="muted" style="font-size:13px">${until?('Votre abonnement démarrera le '+until+'. Rien n\'est prélevé d\'ici là.'):'Profitez de toutes les fonctionnalités.'}</div></div></div>`;}
   else if(st==='past_due'){box.innerHTML=`<p style="margin:6px 0 2px"><span class="pill amber"><i class="ti ti-alert-triangle"></i> Paiement en attente</span></p><p class="muted" style="font-size:13px;margin-bottom:4px">Un souci est survenu sur le règlement. Relancez un paiement ci-dessous.</p>`+plans;}
@@ -1076,6 +1097,7 @@ async function aiEmailFiche(id,btn){const p=pipeData.find(x=>x.id===id);const bo
   finally{if(btn){btn.disabled=false;btn.innerHTML=bo;}}}
 async function sendEmail(id,btn){const to=$("sp-email").value.trim(),subject=$("sp-subject").value.trim(),body=$("sp-body").value.trim();
   if(!to||!subject||!body){alert("Renseigne l'email du contact, l'objet et le message.");return;}
+  if(await overEmailQuota())return;
   const bo=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';
   let attachments=[];
   const ids=[...document.querySelectorAll("#sp-attach input[type=checkbox]:checked")].map(cb=>+cb.dataset.docid);
