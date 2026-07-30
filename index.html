@@ -793,7 +793,7 @@ async function sendEmail(id,btn){const to=$("sp-email").value.trim(),subject=$("
   try{const {data:er}=await sb.from("emails").insert({club_id:clubId,pipeline_id:id,to_email:to,subject,body}).select("id").maybeSingle();if(er)eid=er.id;}catch(_){}
   const track=location.origin+"/api/track?id="+id+(eid?"&e="+eid:"");
   const html=body.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>")+'<img src="'+track+'" width="1" height="1" style="display:none" alt="">';
-  try{const r=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to,subject,html,fromName:$("nom").value||"Sponsoclub",replyTo:(user&&user.email)||"",attachments})});
+  try{const r=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to,subject,html,fromName:$("nom").value||"Sponsoclub",replyTo:(user&&user.email)||"",replyToken:id,attachments})});
     const j=await r.json().catch(()=>({error:"réponse invalide"}));if(!r.ok||j.error)throw new Error(j.error||("HTTP "+r.status));
     await sb.from("pipeline").update({email_to:to,email_subject:subject,email_sent_at:new Date().toISOString(),statut:"Contacté"}).eq("id",id);
     const p=pipeData.find(x=>x.id===id);if(p){p.email_to=to;p.email_subject=subject;p.email_sent_at=new Date().toISOString();p.statut="Contacté";}
@@ -804,14 +804,21 @@ async function sendEmail(id,btn){const to=$("sp-email").value.trim(),subject=$("
   finally{btn.disabled=false;btn.innerHTML=bo;}}
 async function loadSponsorMails(id){
   const box=$("sp-mails");if(!box)return;
-  const {data,error}=await sb.from("emails").select("id,subject,to_email,sent_at,opened_at").eq("pipeline_id",id).order("sent_at",{ascending:false});
+  const {data,error}=await sb.from("emails").select("id,subject,to_email,from_email,body,direction,sent_at,opened_at").eq("pipeline_id",id).order("sent_at",{ascending:true});
   if(error){box.innerHTML='<div class="muted" style="font-size:13px">Historique indisponible.</div>';return;}
-  if(!data||!data.length){box.innerHTML='<div class="muted" style="font-size:13px">Aucun email envoyé pour l\'instant.</div>';return;}
-  box.innerHTML=data.map(m=>{
-    const d=m.sent_at?new Date(m.sent_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
-    const op=m.opened_at?'<span class="pill green" style="margin-left:auto"><i class="ti ti-eye"></i> Ouvert</span>':'<span class="pill gray" style="margin-left:auto">Envoyé</span>';
-    return `<div class="item" style="padding:10px 0"><div class="ic" style="width:32px;height:32px;font-size:15px"><i class="ti ti-mail"></i></div><div class="grow"><div class="t" style="font-size:13.5px">${(m.subject||'(sans objet)').replace(/</g,'&lt;')}</div><div class="s">${d} · ${(m.to_email||'').replace(/</g,'&lt;')}</div></div>${op}</div>`;
-  }).join("");
+  if(!data||!data.length){box.innerHTML='<div class="muted" style="font-size:13px">Aucun échange pour l\'instant.</div>';return;}
+  const esc=s=>(s||'').replace(/</g,'&lt;');
+  box.innerHTML='<div style="display:flex;flex-direction:column;gap:10px">'+data.map(m=>{
+    const inb=m.direction==='in';
+    const d=m.sent_at?new Date(m.sent_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+    const who=inb?('↩ '+(esc(m.from_email)||'réponse du partenaire')):'Vous';
+    const status=inb?'':(m.opened_at?'<span class="pill green"><i class="ti ti-eye"></i> Ouvert</span>':'<span class="pill gray">Envoyé</span>');
+    const bubble=inb?'background:var(--greenbg);border:1px solid #bfe3d4':'background:var(--surface2);border:1px solid var(--border)';
+    const snippet=inb&&m.body?`<div style="font-size:13px;color:var(--text);margin-top:6px;white-space:pre-wrap">${esc(m.body).slice(0,600)}${m.body.length>600?'…':''}</div>`:'';
+    return `<div style="align-self:${inb?'flex-start':'stretch'};max-width:100%;border-radius:12px;padding:11px 13px;${bubble}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:12px;font-weight:600;color:${inb?'var(--green)':'var(--accenttx)'}">${who}</span><span class="muted" style="font-size:11.5px">${d}</span><span style="margin-left:auto">${status}</span></div>
+      <div class="t" style="font-size:13.5px;margin-top:3px">${esc(m.subject)||'(sans objet)'}</div>${snippet}</div>`;
+  }).join("")+'</div>';
 }
 function dlDoc(taId,name){const ta=document.getElementById(taId);const esc=ta.value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+esc+'</body></html>';const blob=new Blob(["﻿",html],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(name||"document")+".doc";document.body.appendChild(a);a.click();a.remove();}
 function renderContractBox(text,id,signed){document.getElementById("sp-contract").innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${(text||"").replace(/</g,"&lt;")}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button><button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button><span id="ct-status" style="color:var(--green);font-size:12px"></span></div><label class="cp" style="max-width:240px;margin-top:10px"><input type="checkbox" ${signed?"checked":""} onchange="setSigned(${id},this.checked)"><span>Contrat signé</span></label>`;}
