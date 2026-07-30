@@ -22,9 +22,10 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
   label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:5px}
   input:not([type=checkbox]),select{width:100%;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px;background:var(--surface)}
-  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:8px;padding:0;border:none;border-radius:6px;background:#e5e7eb;cursor:pointer}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3);cursor:pointer}
-  input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:var(--accent);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.3);cursor:pointer}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;padding:0;border:none;border-radius:99px;background:#e8eaed;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 15%,transparent),0 1px 3px rgba(16,24,40,.2);cursor:pointer;transition:box-shadow .15s}
+  input[type=range]::-webkit-slider-thumb:hover{box-shadow:0 0 0 6px color-mix(in srgb,var(--accent) 18%,transparent),0 1px 3px rgba(16,24,40,.25)}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#fff;border:2px solid var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 15%,transparent),0 1px 3px rgba(16,24,40,.2);cursor:pointer}
   .cp{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;cursor:pointer;font-size:13.5px;color:var(--text)}
   .cp:hover{background:var(--surface2)}
   .cp input{width:18px;height:18px;flex-shrink:0;accent-color:var(--accent);margin:0;cursor:pointer}
@@ -223,11 +224,11 @@
       <div class="card" style="padding:16px 18px;margin-bottom:14px">
         <label style="font-weight:600;color:var(--text);margin-bottom:12px;font-size:13.5px"><span style="display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;align-items:center;justify-content:center;font-size:12px;margin-right:6px">1</span> Rayon autour du stade</label>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
-          <input type="range" id="f-dist" min="1" max="50" step="1" value="10" oninput="updateRayon(this.value)" style="flex:1;min-width:200px">
-          <span id="rayon-val" style="font-weight:700;font-size:19px;min-width:70px;text-align:right;color:var(--accent)">10 km</span>
+          <input type="range" id="f-dist" min="1" max="25" step="1" value="10" oninput="updateRayon(this.value)" style="flex:1;min-width:200px">
+          <span id="rayon-val" style="font-weight:600;font-size:15px;min-width:58px;text-align:center;color:var(--accenttx);background:var(--accentbg);padding:5px 10px;border-radius:20px">10 km</span>
           <button class="primary" onclick="run()"><i class="ti ti-map-search"></i> Détecter</button>
         </div>
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:6px"><span>1 km</span><span>50 km</span></div>
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--faint);margin-top:8px"><span>1 km</span><span>25 km</span></div>
       </div>
 
       <div id="status" class="muted" style="margin-bottom:10px"></div>
@@ -536,7 +537,7 @@ function normalize(list,clat,clon){const seen={};return list.map(e=>{const et=(e
     else if(/^47\.1/.test(naf)){const A=(et.adresse||"").toUpperCase();const G=[["INTERMARCHE","Intermarché"],["CARREFOUR","Carrefour"],["E.LECLERC","E.Leclerc"],["LECLERC","E.Leclerc"],["SUPER U","Super U"],["HYPER U","Hyper U"],["MAGASINS U","Magasins U"],["LIDL","Lidl"],["ALDI","Aldi"],["CASINO","Casino"],["MONOPRIX","Monoprix"],["AUCHAN","Auchan"],["NETTO","Netto"],["CORA","Cora"],["FRANPRIX","Franprix"],["GEANT","Géant"]];for(const g of G){if(A.includes(g[0])){disp=g[1]+(ville?(" "+cn(ville)):"");break;}}}
     return{name:disp,cl,ic,sc,dist,ville:cn(ville),effectif:(et.tranche_effectif_salarie||e.tranche_effectif_salarie||"")};}).filter(x=>{if(!x||x.sc<1)return false;const k=x.name.toLowerCase();if(seen[k])return false;seen[k]=1;return true;}).sort((a,b)=>b.sc-a.sc||((a.dist??99)-(b.dist??99))).slice(0,500);}
 async function run(){
-  const adr=$("adr").value.trim();const rad=Math.min(50,Math.max(1,+($("f-dist")?$("f-dist").value:0)||10));
+  const adr=$("adr").value.trim();const rad=Math.min(25,Math.max(1,+($("f-dist")?$("f-dist").value:0)||10));
   if(!adr){$("status").innerHTML='<i class="ti ti-alert-triangle" style="color:var(--amber)"></i> Renseigne d\'abord l\'adresse du stade dans l\'onglet Profil, puis enregistre.';return;}
   $("status").innerHTML='<span class="spin"></span> Géocodage…'; $("results").innerHTML='<div class="empty"><span class="spin"></span></div>';
   try{const g=await geocode(adr);$("status").innerHTML='<span class="spin"></span> Recherche des entreprises autour de « '+g.label+' »…';
