@@ -987,8 +987,21 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
     <div class="sp-page" data-p="page">
       <p class="muted" style="font-size:13px;margin-bottom:12px">Une page publique aux couleurs du club — formule, contreparties livrées et visibilité estimée. À envoyer au sponsor comme preuve de ce qu'il reçoit.</p>
       <div id="sp-share"></div>
+      <div style="border-top:1px solid var(--border);margin:18px 0 12px"></div>
+      <label style="font-weight:500;display:block;margin-bottom:4px"><i class="ti ti-photo"></i> Publications où le partenaire est mentionné</label>
+      <p class="muted" style="font-size:12.5px;margin-bottom:10px">Ajoutez vos posts (lien + image + légende). Ils s'affichent sur la page du partenaire.</p>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+        <div><label>Légende</label><input id="po-caption" placeholder="Ex. Merci à notre partenaire !"></div>
+        <div><label>Lien du post</label><input id="po-url" placeholder="https://instagram.com/..."></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+        <input type="file" id="po-file" accept="image/*" style="font-size:13px;border:none;padding:0">
+        <button onclick="addPost(${id},this)"><i class="ti ti-plus"></i> Ajouter la publication</button>
+        <span id="po-status" class="muted" style="font-size:12px"></span>
+      </div>
+      <div id="sp-posts"></div>
     </div>`;
-  renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);spTab(tab||'offre');
+  renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);loadPosts(id);spTab(tab||'offre');
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
@@ -1176,6 +1189,30 @@ async function shareSpace(id,btn){const tok=(Date.now().toString(36)+Math.random
   const {error}=await sb.from("pipeline").update({share_token:tok}).eq("id",id);
   if(error){alert("Erreur: "+error.message);if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i> Générer le lien partageable';}return;}
   const p=pipeData.find(x=>x.id===id);if(p)p.share_token=tok;renderShare(id);}
+async function loadPosts(id){
+  const box=$("sp-posts");if(!box)return;
+  const {data,error}=await sb.from("posts").select("id,url,image,caption,created_at").eq("pipeline_id",id).order("created_at",{ascending:false});
+  if(error){box.innerHTML="";return;}
+  if(!data||!data.length){box.innerHTML='<div class="muted" style="font-size:12.5px">Aucune publication pour l\'instant.</div>';return;}
+  box.innerHTML=data.map(po=>`<div class="item" style="align-items:flex-start">${po.image?`<img src="${po.image}" alt="" style="width:46px;height:46px;border-radius:8px;object-fit:cover;flex-shrink:0">`:`<div class="ic"><i class="ti ti-photo"></i></div>`}<div class="grow"><div class="t" style="font-size:13.5px">${(po.caption||'Publication').replace(/</g,"&lt;")}</div>${po.url?`<div class="s"><a href="${po.url}" target="_blank" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-external-link"></i> voir le post</a></div>`:""}</div><button onclick="deletePost(${po.id},${id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div>`).join("");
+}
+function addPost(id,btn){
+  const caption=$("po-caption").value.trim(),purl=$("po-url").value.trim();
+  const f=$("po-file")&&$("po-file").files&&$("po-file").files[0];
+  if(!caption&&!purl&&!f){alert("Ajoute au moins une légende, un lien ou une image.");return;}
+  if(f&&f.size>2*1024*1024){alert("Image trop lourde (max 2 Mo).");return;}
+  const st=$("po-status");if(st)st.textContent="Ajout…";
+  const save=async(image)=>{
+    const {error}=await sb.from("posts").insert({club_id:clubId,pipeline_id:id,url:purl||null,caption:caption||null,image:image||null});
+    if(st)st.textContent="";
+    if(error){alert("Erreur : "+error.message);return;}
+    $("po-caption").value="";$("po-url").value="";if($("po-file"))$("po-file").value="";
+    loadPosts(id);
+  };
+  if(f){const rd=new FileReader();rd.onload=e=>save(""+e.target.result);rd.onerror=()=>{if(st)st.textContent="";alert("Image illisible.");};rd.readAsDataURL(f);}
+  else save(null);
+}
+async function deletePost(pid,id){if(!confirm("Supprimer cette publication ?"))return;const {error}=await sb.from("posts").delete().eq("id",pid);if(error){alert("Erreur : "+error.message);return;}loadPosts(id);}
 function demo(){return [
   {name:"Garage Central",cl:"Automobile",ic:"ti-car",dist:1.2,sc:4,ville:"Villeneuve"},
   {name:"Boulangerie Moreau",cl:"Alimentaire",ic:"ti-bread",dist:0.6,sc:4,ville:"Villeneuve"},
