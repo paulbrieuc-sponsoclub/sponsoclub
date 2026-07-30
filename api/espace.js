@@ -37,7 +37,8 @@ module.exports = async (req, res) => {
       },
       sponsor: {
         name: row.name || 'Partenaire', pack: row.pack || '', montant: +row.montant || 0,
-        statut: row.statut || '', signe: row.contrat_signe === true, regle: row.payment_status === 'Réglé'
+        statut: row.statut || '', signe: row.contrat_signe === true, regle: row.payment_status === 'Réglé',
+        contrat: (row.contrat_signe === true && row.contrat) ? row.contrat : null
       },
       contreparties,
       posts
