@@ -648,6 +648,9 @@ function renderToday(){
   // 2. Paiements en attente (signé, pas réglé)
   const paie=pipeData.filter(p=>p.statut==="Signé"&&p.payment_status!=="Réglé");
   if(paie.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-cash" style="color:var(--green)"></i> Paiements en attente (${paie.length})</h3><div class="card">${paie.map(p=>line("ti-receipt","#159169",p.name,(p.montant?p.montant.toLocaleString('fr-FR')+" € — ":"")+"en attente de règlement",p.id,'paiement')).join("")}</div></div>`);
+  // Bilans / renouvellements à envoyer (partenaires signés sans bilan encore envoyé)
+  const bilans=pipeData.filter(p=>p.statut==="Signé"&&!p.renewal_at);
+  if(bilans.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-award" style="color:#7a3ff2"></i> Bilans à envoyer (${bilans.length})</h3><div class="card">${bilans.map(p=>`<div class="item"><div class="ic" style="background:#7a3ff21f;color:#7a3ff2"><i class="ti ti-award"></i></div><div class="grow"><div class="t">${(p.name||'').replace(/</g,"&lt;")}</div><div class="s">Envoyer le bilan de saison + proposer le renouvellement</div></div><button class="primary" onclick="prepareBilan(${p.id})"><i class="ti ti-send"></i> Bilan</button></div>`).join("")}</div></div>`);
   // 3. Prochaines actions planifiées sur un sponsor
   const na=pipeData.filter(p=>p.statut!=="Signé"&&p.next_action&&(""+p.next_action).trim());
   if(na.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-flag" style="color:var(--accent)"></i> Prochaines actions (${na.length})</h3><div class="card">${na.map(p=>line("ti-building-store","#3b4cd8",p.name,"→ "+(""+p.next_action).replace(/</g,"&lt;"),p.id)).join("")}</div></div>`);
@@ -730,6 +733,44 @@ async function cancelRelance(rid){
   await sb.from("relances").update({status:"annulé"}).eq("id",rid);
   loadRelances();
 }
+async function prepareBilan(id){
+  const p=pipeData.find(x=>x.id===id);if(!p)return;
+  const nom=$("nom").value||"le club";
+  // s'assurer qu'un lien d'espace existe (le bilan pointe dessus)
+  let tok=p.share_token;
+  if(!tok){tok=(Date.now().toString(36)+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,8));const {error}=await sb.from("pipeline").update({share_token:tok}).eq("id",id);if(error){alert("Erreur : "+error.message);return;}p.share_token=tok;}
+  const espace=location.origin+"/espace.html#"+tok;
+  const subject="Bilan de la saison avec "+nom+" — et la suite ?";
+  const body=`Bonjour,\n\nUn grand merci pour votre soutien au ${nom} cette saison, il a vraiment compté pour nous.\n\nVous pouvez retrouver le bilan de votre partenariat — votre visibilité et les contreparties livrées — sur votre espace dédié :\n${espace}\n\nNous serions ravis de continuer l'aventure ensemble la saison prochaine. Souhaitez-vous renouveler votre partenariat ? Je reste à votre disposition pour en discuter.\n\nBien à vous,\n${nom}`;
+  $("dlg-title").textContent="Bilan & renouvellement · "+p.name;
+  $("dlg-body").innerHTML=`
+    <p class="muted" style="margin-bottom:12px">Un email de bilan de saison avec le lien vers l'espace du partenaire (sa visibilité + ses contreparties) et une proposition de renouvellement. Modifiable avant envoi.</p>
+    <label>Destinataire</label><input id="bl-to" value="${(p.email_to||'').replace(/"/g,'&quot;')}" placeholder="email du contact">
+    <label style="margin-top:10px">Objet</label><input id="bl-subject" value="${subject.replace(/"/g,'&quot;')}">
+    <label style="margin-top:10px">Message</label>
+    <textarea id="bl-body" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13.5px;line-height:1.6">${body.replace(/</g,"&lt;")}</textarea>
+    <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+      <button class="primary" onclick="sendBilan(${id},this)"><i class="ti ti-send"></i> Envoyer le bilan</button>
+      <a href="${espace}" target="_blank"><button type="button"><i class="ti ti-eye"></i> Voir l'espace</button></a>
+      <button onclick="document.getElementById('dlg').close()">Fermer</button>
+    </div>`;
+  $("dlg").showModal();
+}
+async function sendBilan(id,btn){
+  const to=$("bl-to").value.trim(),subject=$("bl-subject").value.trim(),body=$("bl-body").value.trim();
+  if(!to||!body){alert("Renseigne le destinataire et le message.");return;}
+  const bo=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';
+  try{
+    let eid=null;try{const {data:er}=await sb.from("emails").insert({club_id:clubId,pipeline_id:id,direction:"out",to_email:to,subject,body}).select("id").maybeSingle();if(er)eid=er.id;}catch(_){}
+    const track=location.origin+"/api/track?id="+id+(eid?"&e="+eid:"");
+    const html=body.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/\n/g,"<br>")+'<img src="'+track+'" width="1" height="1" style="display:none" alt="">';
+    const r=await fetch("/api/send",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({to,subject,html,fromName:$("nom").value||"Sponsoclub",replyToken:id})});
+    const j=await r.json().catch(()=>({error:"réponse invalide"}));if(!r.ok||j.error)throw new Error(j.error||"HTTP "+r.status);
+    await sb.from("pipeline").update({renewal_at:new Date().toISOString()}).eq("id",id);
+    const p=pipeData.find(x=>x.id===id);if(p)p.renewal_at=new Date().toISOString();
+    $("dlg").close();loadPipe();
+  }catch(e){alert("Envoi impossible : "+e.message);btn.disabled=false;btn.innerHTML=bo;}
+}
 function renderKpis(){
   const signes=pipeData.filter(p=>p.statut==="Signé");
   const argent=signes.reduce((s,p)=>s+(+p.montant||0),0);
@@ -788,7 +829,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
       <label>Notes</label>
       <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="genContract(${id},this)"><i class="ti ti-file-text"></i> Générer le contrat (IA)</button></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="genContract(${id},this)"><i class="ti ti-file-text"></i> Générer le contrat (IA)</button>${p.statut==='Signé'?`<button onclick="prepareBilan(${id})"><i class="ti ti-award"></i> Bilan &amp; renouvellement</button>`:""}</div>
       <div id="sp-contract" style="margin-top:14px"></div>
     </div>
 
