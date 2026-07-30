@@ -639,7 +639,7 @@ function renderToday(){
   const paie=pipeData.filter(p=>p.statut==="Signé"&&p.payment_status!=="Réglé");
   if(paie.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-cash" style="color:var(--green)"></i> Paiements à encaisser (${paie.length})</h3><div class="card">${paie.map(p=>line("ti-receipt","#159169",p.name,(p.montant?p.montant.toLocaleString('fr-FR')+" € — ":"")+"à encaisser",p.id,'paiement')).join("")}</div></div>`);
   // 3. Prochaines actions planifiées sur un sponsor
-  const na=pipeData.filter(p=>p.next_action&&(""+p.next_action).trim());
+  const na=pipeData.filter(p=>p.statut!=="Signé"&&p.next_action&&(""+p.next_action).trim());
   if(na.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-flag" style="color:var(--accent)"></i> Prochaines actions (${na.length})</h3><div class="card">${na.map(p=>line("ti-building-store","#3b4cd8",p.name,"→ "+(""+p.next_action).replace(/</g,"&lt;"),p.id)).join("")}</div></div>`);
   // 4. Tâches perso à échéance
   const taches=actionsData.filter(a=>!a.fait&&a.echeance&&new Date(a.echeance).getTime()<=endToday.getTime());
@@ -786,6 +786,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
         <button onclick="aiEmailFiche(${id},this)"><i class="ti ti-sparkles"></i> Rédiger avec l'IA</button>
         <button class="primary" onclick="sendEmail(${id},this)"><i class="ti ti-send"></i> Envoyer</button>
+        <button onclick="prepareRelance(${id})"><i class="ti ti-clock"></i> Programmer une relance</button>
         <span id="sp-email-status" style="font-size:12px;color:var(--muted)">${p.email_sent_at?('Envoyé le '+new Date(p.email_sent_at).toLocaleDateString('fr-FR')+(p.email_opened_at?' · ouvert ✓':'')):''}</span>
       </div>
       <div style="border-top:1px solid var(--border);margin:18px 0 12px"></div>
