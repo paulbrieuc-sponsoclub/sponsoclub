@@ -144,22 +144,13 @@ function render(d){
 
     <div class="card impact">
       <h2><span class="chip"><i class="ti ti-map-pin"></i></span> Votre exposition locale</h2>
-      <div class="big">≈ ${nb(total)} <small>contacts touchés sur la saison</small></div>
-      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
-        ${cpm!=null?`<div class="stat"><div class="v">${nb(cpm)} €</div><div class="l">pour 1 000 personnes touchées</div></div>`:''}
-        <div class="stat"><div class="v">~${moisExpo} mois</div><div class="l">de visibilité continue, toute la saison</div></div>
-        ${nbSupports?`<div class="stat"><div class="v">${nbSupports}</div><div class="l">supports de visibilité inclus</div></div>`:''}
-        <div class="stat"><div class="v">${nb(c.licencies)}</div><div class="l">familles locales, votre clientèle de proximité</div></div>
+      <div class="big">≈ ${nb(total)} fois <small>votre logo vu cette saison</small></div>
+      <div class="stats" style="margin-top:20px">
+        <div class="stat"><i class="ti ti-users" style="font-size:22px;color:var(--accent)"></i><div class="v" style="font-size:21px;margin-top:6px">${nb(c.spectateurs)}</div><div class="l">spectateurs à chaque match</div></div>
+        <div class="stat"><i class="ti ti-device-mobile" style="font-size:22px;color:var(--accent)"></i><div class="v" style="font-size:21px;margin-top:6px">${nb(c.reseaux)}</div><div class="l">abonnés sur les réseaux du club</div></div>
+        <div class="stat"><i class="ti ti-home-heart" style="font-size:22px;color:var(--accent)"></i><div class="v" style="font-size:21px;margin-top:6px">${nb(c.licencies)}</div><div class="l">familles du club, près de chez vous</div></div>
       </div>
-      <div style="margin-top:18px;border-top:1px dashed color-mix(in srgb,var(--sec) 40%,#fff);padding-top:14px">
-        <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em">D'où vient cette audience</div>
-        <div class="stats">
-          <div class="stat"><div class="v">${nb(vueStade)}</div><div class="l">vues au stade<br>${nb(c.spectateurs)}/match × ${matchs}</div></div>
-          <div class="stat"><div class="v">${nb(vueRes)}</div><div class="l">portée réseaux<br>${nb(c.reseaux)} abonnés</div></div>
-          <div class="stat"><div class="v">${nb(vueFoyers)}</div><div class="l">bouche-à-oreille<br>${nb(c.licencies)} licenciés</div></div>
-        </div>
-      </div>
-      <div class="note">Estimation indicative de visibilité sur une saison (panneau au stade, tenues, relais réseaux, site & newsletter). Ce n'est pas une garantie de chiffre d'affaires — mais une présence durable auprès d'un public local et fidèle.</div>
+      <div class="note">Votre marque présente toute la saison (~${moisExpo} mois) : panneau au stade, maillots et réseaux. Une audience locale et fidèle.</div>
     </div>
 
     ${(c.mecenat&&s.montant)?`
