@@ -106,6 +106,9 @@ function fail(t,m){$("app").innerHTML=`<div class="err"><i class="ti ti-link-off
 let CLUB=null,SPONSOR=null;
 function postEmbed(u){
   u=(u||'').trim();if(!u)return null;
+  // Code d'intégration collé directement (on ne garde que le src, pas de script)
+  const code=u.match(/<iframe[^>]*\ssrc=["']([^"']+)["']/i);
+  if(code) return `<iframe src="${code[1].replace(/"/g,'&quot;')}" style="height:600px" scrolling="no" allowfullscreen loading="lazy"></iframe>`;
   const ig=u.match(/instagram\.com\/(?:[^\/?]+\/)?(p|reel|tv)\/([A-Za-z0-9_-]+)/i);
   if(ig) return `<iframe src="https://www.instagram.com/${ig[1].toLowerCase()}/${ig[2]}/embed" style="height:660px" scrolling="no" loading="lazy"></iframe>`;
   if(/facebook\.com|fb\.watch|fb\.me/i.test(u)) return `<iframe src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(u)}&show_text=true&width=500" style="height:600px" scrolling="no" allowfullscreen loading="lazy"></iframe>`;
@@ -190,10 +193,14 @@ function render(d){
       <div class="posts">
         ${d.posts.map(po=>{
           const emb=postEmbed(po.url);
-          const cap=po.caption?`<div class="post-b"><div class="post-cap">${esc(po.caption)}</div>${po.url?`<a href="${esc(po.url)}" target="_blank" class="post-link"><i class="ti ti-external-link"></i> Voir le post</a>`:''}</div>`:(po.url?`<div class="post-b"><a href="${esc(po.url)}" target="_blank" class="post-link"><i class="ti ti-external-link"></i> Voir le post</a></div>`:'');
-          if(emb)return `<div class="post">${emb}${cap}</div>`;
-          if(po.image)return `<div class="post"><img class="post-photo" src="${esc(po.image)}" alt="">${cap}</div>`;
-          return `<div class="post">${cap||'<div class="post-b post-cap">Publication</div>'}</div>`;
+          const isCode=/<iframe/i.test(po.url||'');
+          const href=isCode?((po.url.match(/src=["']([^"']+)["']/i)||[])[1]||''):(po.url||'');
+          const link=(href&&/^https?:/i.test(href))?`<a href="${esc(href)}" target="_blank" class="post-link"><i class="ti ti-external-link"></i> Voir le post</a>`:'';
+          const capTxt=po.caption?`<div class="post-cap">${esc(po.caption)}</div>`:'';
+          const body=(capTxt||link)?`<div class="post-b">${capTxt}${link}</div>`:'';
+          if(emb)return `<div class="post">${emb}${body}</div>`;
+          if(po.image)return `<div class="post"><img class="post-photo" src="${esc(po.image)}" alt="" onerror="this.remove()">${body}</div>`;
+          return `<div class="post">${body||'<div class="post-b post-cap">Publication</div>'}</div>`;
         }).join("")}
       </div>
     </div>`:""}
