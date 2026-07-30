@@ -34,9 +34,12 @@ function buildPrompt(type, d) {
   if (type === 'contrat') {
     const cps = (d.contreparties || []).join(' ; ');
     const mecArt = mecenat ? `\nLe Club étant une association d'intérêt général, le versement ouvre droit pour le Parrain à une réduction d'impôt de 60 % au titre du mécénat (art. 238 bis du CGI) ; ajoute un article « Régime fiscal (mécénat) » le mentionnant et précise qu'un reçu fiscal Cerfa sera remis.` : '';
+    const duree = (d.debut || d.fin)
+      ? `\nDurée du partenariat : ${d.debut ? 'du ' + d.debut : ''}${d.fin ? ' au ' + d.fin : ''}. Utilise impérativement ces dates dans l'article « Durée » (pas de reconduction tacite).`
+      : `\nDurée : une saison sportive, sans reconduction tacite.`;
     return {
       system: "Tu rédiges des contrats de parrainage sportif clairs, simples et équilibrés, en français, prêts à signer, structurés en articles numérotés. Reste concis et professionnel, sans jargon inutile.",
-      prompt: `Rédige un contrat de parrainage sportif entre ${d.club || 'le Club'} (« le Club ») et ${d.sponsor || 'le partenaire'} (« le Parrain »).\n${club}\nMontant du parrainage : ${d.montant || 'à préciser'} € pour la saison sportive.\nContreparties offertes par le Club au Parrain : ${cps || 'à préciser'}.${mecArt}\nInclure les articles : Objet, Contreparties (détaillées), Montant et modalités de paiement, Durée (une saison, sans reconduction tacite), Obligations des parties, Résiliation, puis deux blocs de signature (le Club / le Parrain) avec lieu et date.`
+      prompt: `Rédige un contrat de parrainage sportif entre ${d.club || 'le Club'} (« le Club ») et ${d.sponsor || 'le partenaire'} (« le Parrain »).\n${club}\nMontant du parrainage : ${d.montant || 'à préciser'} €.\nContreparties offertes par le Club au Parrain : ${cps || 'à préciser'}.${duree}${mecArt}\nInclure les articles : Objet, Contreparties (détaillées), Montant et modalités de paiement, Durée (avec les dates ci-dessus), Obligations des parties, Résiliation, puis deux blocs de signature (le Club / le Parrain) avec lieu et date.`
     };
   }
   const mecLine = mecenat ? ` Mets en avant l'avantage fiscal du mécénat : réduction d'impôt de 60 % sur le don (un don de 1 000 € ne coûte réellement que 400 € au partenaire).` : '';
