@@ -5,7 +5,7 @@ module.exports = async (req, res) => {
   if (!key) { res.status(500).json({ error: 'RESEND_API_KEY absente : configure-la dans Vercel.' }); return; }
   try {
     const b = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const { to, subject, html, fromName, replyTo, attachments } = b;
+    const { to, subject, html, fromName, replyTo, replyToken, attachments } = b;
     if (!to || !subject || !html) { res.status(400).json({ error: 'Champs manquants (destinataire, objet, message).' }); return; }
     const payload = {
       from: (fromName || 'Sponsoclub') + ' <contact@sponsoclub.fr>',
@@ -13,7 +13,9 @@ module.exports = async (req, res) => {
       subject,
       html
     };
-    if (replyTo) payload.reply_to = [replyTo];
+    // Adresse de réponse unique : les réponses reviennent dans l'appli (via Resend Inbound)
+    if (replyToken) payload.reply_to = ['reponse+' + replyToken + '@sponsoclub.fr'];
+    else if (replyTo) payload.reply_to = [replyTo];
     if (Array.isArray(attachments) && attachments.length) {
       payload.attachments = attachments
         .filter(a => a && a.filename && a.content)
