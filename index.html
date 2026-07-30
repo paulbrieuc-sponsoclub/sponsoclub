@@ -66,6 +66,11 @@
   .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:6px 0 14px}
   .pack{border:1px solid var(--border);border-radius:10px;padding:12px}.pack.reco{border:2px solid var(--accent)}
   .pack .tier{font-size:12px;color:var(--muted)}.pack .price{font-size:18px;font-weight:600}
+  .sp-tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin:0 0 18px;flex-wrap:wrap;position:sticky;top:0;background:var(--surface);z-index:2}
+  .sp-tabbtn{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);padding:9px 13px;font-size:13.5px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;border-radius:0}
+  .sp-tabbtn:hover{background:transparent;color:var(--text)}
+  .sp-tabbtn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
+  .sp-page{display:none}.sp-page.on{display:block}
   /* auth */
   #auth{max-width:400px;margin:8vh auto;padding:0 20px}
   .authcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 24px;box-shadow:0 4px 20px rgba(16,24,40,.06)}
@@ -591,52 +596,64 @@ function renderOffresView(){const box=$("offres-view");if(!box)return;const list
 function showOffresView(){renderOffresView();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="grid";if(e)e.style.display="none";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="editOffres()"><i class="ti ti-edit"></i> Modifier les offres</button>';}
 function editOffres(){renderOffresEditor();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="none";if(e)e.style.display="block";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer</button>';}
 function switchTab(name){document.querySelectorAll(".tabpage").forEach(el=>{el.style.display=el.classList.contains("tab-"+name)?"":"none";});document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));window.scrollTo({top:0,behavior:"smooth"});}
+function spTab(n){document.querySelectorAll(".sp-page").forEach(el=>el.classList.toggle("on",el.dataset.p===n));document.querySelectorAll(".sp-tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.p===n));const b=document.querySelector(".dlg-b");if(b)b.scrollTop=0;}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
 function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
 function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const o=offreByName(pack);const mt=$("sp-montant");if(o&&o.prix&&(!mt.value||mt.dataset.auto==="1")){mt.value=o.prix;mt.dataset.auto="1";}}
 function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||((clubOffres||DEFAULT_OFFRES)[0]||{}).nom||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
   $("dlg-title").textContent="Gérer · "+p.name;
   $("dlg-body").innerHTML=`
-    <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
-      <div><label>Statut</label><select id="sp-statut" onchange="document.getElementById('sp-hint').textContent=actionHint(this.value)">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select></div>
-      <div><label>Pack</label><select id="sp-pack" onchange="packChanged()">${(clubOffres||DEFAULT_OFFRES).map(o=>`<option ${pack===o.nom?"selected":""}>${o.nom}</option>`).join("")}</select></div>
-      <div><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
-      <div><label>Prochaine action</label><input id="sp-action" value="${(p.next_action||'').replace(/"/g,'&quot;')}" placeholder="ex. relancer le 15/09"></div>
+    <div class="sp-tabs">
+      <button class="sp-tabbtn active" data-p="offre" onclick="spTab('offre')"><i class="ti ti-award"></i> Offre</button>
+      <button class="sp-tabbtn" data-p="mail" onclick="spTab('mail')"><i class="ti ti-mail"></i> Mail</button>
+      <button class="sp-tabbtn" data-p="paiement" onclick="spTab('paiement')"><i class="ti ti-cash"></i> Paiement</button>
+      <button class="sp-tabbtn" data-p="page" onclick="spTab('page')"><i class="ti ti-share"></i> Page partenaire</button>
     </div>
-    <div style="background:var(--accentbg);color:var(--accenttx);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px"><i class="ti ti-bulb"></i> <span id="sp-hint">${actionHint(p.statut)}</span></div>
-    ${(p.phone||p.website)?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:14px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-world"></i> site web</a>`:""}</div>`:""}
-    <label style="margin-bottom:6px">Contreparties à livrer</label>
-    <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
-    <label>Notes</label>
-    <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
-    <div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>
-    <label style="font-weight:500;display:block;margin-bottom:8px"><i class="ti ti-mail"></i> Email au sponsor</label>
-    <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
-      <div><label>Email du contact</label><input id="sp-email" type="email" value="${(p.email_to||'').replace(/"/g,'&quot;')}" placeholder="contact@commerce.fr"></div>
-      <div><label>Objet</label><input id="sp-subject" value="${(p.email_subject||'').replace(/"/g,'&quot;')}" placeholder="Partenariat avec le club"></div>
+
+    <div class="sp-page on" data-p="offre">
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div><label>Statut</label><select id="sp-statut" onchange="document.getElementById('sp-hint').textContent=actionHint(this.value)">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select></div>
+        <div><label>Pack</label><select id="sp-pack" onchange="packChanged()">${(clubOffres||DEFAULT_OFFRES).map(o=>`<option ${pack===o.nom?"selected":""}>${o.nom}</option>`).join("")}</select></div>
+        <div><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
+        <div><label>Prochaine action</label><input id="sp-action" value="${(p.next_action||'').replace(/"/g,'&quot;')}" placeholder="ex. relancer le 15/09"></div>
+      </div>
+      <div style="background:var(--accentbg);color:var(--accenttx);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px"><i class="ti ti-bulb"></i> <span id="sp-hint">${actionHint(p.statut)}</span></div>
+      ${(p.phone||p.website)?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:14px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-world"></i> site web</a>`:""}</div>`:""}
+      <label style="margin-bottom:6px">Contreparties à livrer</label>
+      <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
+      <label>Notes</label>
+      <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="genContract(${id},this)"><i class="ti ti-file-text"></i> Générer le contrat (IA)</button></div>
+      <div id="sp-contract" style="margin-top:14px"></div>
     </div>
-    <textarea id="sp-body" style="width:100%;min-height:130px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13.5px;line-height:1.6" placeholder="Rédige avec l'IA ou écris ton message…"></textarea>
-    <div id="sp-attach" style="margin-top:10px"></div>
-    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center">
-      <button onclick="aiEmailFiche(${id},this)"><i class="ti ti-sparkles"></i> Rédiger avec l'IA</button>
-      <button class="primary" onclick="sendEmail(${id},this)"><i class="ti ti-send"></i> Envoyer</button>
-      <span id="sp-email-status" style="font-size:12px;color:var(--muted)">${p.email_sent_at?('Envoyé le '+new Date(p.email_sent_at).toLocaleDateString('fr-FR')+(p.email_opened_at?' · ouvert ✓':'')):''}</span>
+
+    <div class="sp-page" data-p="mail">
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+        <div><label>Email du contact</label><input id="sp-email" type="email" value="${(p.email_to||'').replace(/"/g,'&quot;')}" placeholder="contact@commerce.fr"></div>
+        <div><label>Objet</label><input id="sp-subject" value="${(p.email_subject||'').replace(/"/g,'&quot;')}" placeholder="Partenariat avec le club"></div>
+      </div>
+      <textarea id="sp-body" style="width:100%;min-height:150px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13.5px;line-height:1.6" placeholder="Rédige avec l'IA ou écris ton message…"></textarea>
+      <div id="sp-attach" style="margin-top:10px"></div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;align-items:center">
+        <button onclick="aiEmailFiche(${id},this)"><i class="ti ti-sparkles"></i> Rédiger avec l'IA</button>
+        <button class="primary" onclick="sendEmail(${id},this)"><i class="ti ti-send"></i> Envoyer</button>
+        <span id="sp-email-status" style="font-size:12px;color:var(--muted)">${p.email_sent_at?('Envoyé le '+new Date(p.email_sent_at).toLocaleDateString('fr-FR')+(p.email_opened_at?' · ouvert ✓':'')):''}</span>
+      </div>
     </div>
-    <div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="genContract(${id},this)"><i class="ti ti-file-text"></i> Générer le contrat (IA)</button><button onclick="document.getElementById('dlg').close()">Fermer</button></div>
-    <div id="sp-contract" style="margin-top:14px"></div>
-    <div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>
-    <label style="font-weight:500;display:block;margin-bottom:8px"><i class="ti ti-cash"></i> Règlement du sponsoring</label>
-    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:8px">
-      <div style="flex:1;min-width:220px"><label>Lien de paiement (Stripe, HelloAsso, virement…)</label><input id="sp-paylink" value="${(p.payment_link||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
-      <button id="sp-pay-btn" onclick="togglePaid(${id},this)">${p.payment_status==='Réglé'?'<i class="ti ti-rotate"></i> Marquer non réglé':'<i class="ti ti-check"></i> Marquer payé'}</button>
+
+    <div class="sp-page" data-p="paiement">
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+        <div style="flex:1;min-width:220px"><label>Lien de paiement (Stripe, HelloAsso, virement…)</label><input id="sp-paylink" value="${(p.payment_link||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
+        <button id="sp-pay-btn" onclick="togglePaid(${id},this)">${p.payment_status==='Réglé'?'<i class="ti ti-rotate"></i> Marquer non réglé':'<i class="ti ti-check"></i> Marquer payé'}</button>
+      </div>
+      <div><span class="pill ${p.payment_status==='Réglé'?'green':'amber'}" id="sp-pay-status">${p.payment_status||'Non réglé'}${p.paid_at?(' · '+new Date(p.paid_at).toLocaleDateString('fr-FR')):''}</span>${p.payment_link?' <a href="'+p.payment_link+'" target="_blank" style="color:var(--accenttx);font-size:13px;margin-left:8px"><i class="ti ti-external-link"></i> ouvrir le lien</a>':''}</div>
     </div>
-    <div><span class="pill ${p.payment_status==='Réglé'?'green':'amber'}" id="sp-pay-status">${p.payment_status||'Non réglé'}${p.paid_at?(' · '+new Date(p.paid_at).toLocaleDateString('fr-FR')):''}</span>${p.payment_link?' <a href="'+p.payment_link+'" target="_blank" style="color:var(--accenttx);font-size:13px;margin-left:8px"><i class="ti ti-external-link"></i> ouvrir le lien</a>':''}</div>
-    <div style="border-top:1px solid var(--border);margin:16px 0 12px"></div>
-    <label style="font-weight:500;display:block;margin-bottom:6px"><i class="ti ti-share"></i> Espace partenaire (à partager)</label>
-    <p class="muted" style="font-size:13px;margin-bottom:8px">Une page publique aux couleurs du club — formule, contreparties livrées et visibilité estimée. À envoyer au sponsor comme preuve de ce qu'il reçoit.</p>
-    <div id="sp-share"></div>`;
-  renderCps(pack);renderShare(id);renderAttach();
+
+    <div class="sp-page" data-p="page">
+      <p class="muted" style="font-size:13px;margin-bottom:12px">Une page publique aux couleurs du club — formule, contreparties livrées et visibilité estimée. À envoyer au sponsor comme preuve de ce qu'il reçoit.</p>
+      <div id="sp-share"></div>
+    </div>`;
+  renderCps(pack);renderShare(id);renderAttach();spTab('offre');
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
