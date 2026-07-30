@@ -814,8 +814,9 @@ async function loadSponsorMails(id){
     const who=inb?('↩ '+(esc(m.from_email)||'réponse du partenaire')):'Vous';
     const status=inb?'':(m.opened_at?'<span class="pill green"><i class="ti ti-eye"></i> Ouvert</span>':'<span class="pill gray">Envoyé</span>');
     const bubble=inb?'background:var(--greenbg);border:1px solid #bfe3d4':'background:var(--surface2);border:1px solid var(--border)';
-    const snippet=inb&&m.body?`<div style="font-size:13px;color:var(--text);margin-top:6px;white-space:pre-wrap">${esc(m.body).slice(0,600)}${m.body.length>600?'…':''}</div>`:'';
-    return `<div style="align-self:${inb?'flex-start':'stretch'};max-width:100%;border-radius:12px;padding:11px 13px;${bubble}">
+    let bd=(m.body||'');const qi=bd.search(/\n\s*(Le |On )[^\n]*@[^\n]*/);if(qi>0)bd=bd.slice(0,qi);bd=bd.trim();
+    const snippet=inb&&bd?`<div style="font-size:13px;color:var(--text);margin-top:6px;white-space:pre-wrap">${esc(bd).slice(0,600)}${bd.length>600?'…':''}</div>`:'';
+    return `<div style="align-self:stretch;border-radius:12px;padding:11px 13px;${bubble}">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-size:12px;font-weight:600;color:${inb?'var(--green)':'var(--accenttx)'}">${who}</span><span class="muted" style="font-size:11.5px">${d}</span><span style="margin-left:auto">${status}</span></div>
       <div class="t" style="font-size:13.5px;margin-top:3px">${esc(m.subject)||'(sans objet)'}</div>${snippet}</div>`;
   }).join("")+'</div>';
