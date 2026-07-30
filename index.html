@@ -173,6 +173,10 @@
       <div id="sub-box"><div class="muted" style="font-size:13px">Chargement…</div></div>
     </div>
     <div class="card tabpage tab-profil">
+      <h2 style="margin:0 0 4px"><i class="ti ti-building-bank"></i> Encaissement des sponsors</h2>
+      <div id="connect-box"><div class="muted" style="font-size:13px">Chargement…</div></div>
+    </div>
+    <div class="card tabpage tab-profil">
       <div id="profile-summary" style="display:none">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <img id="sum-logo" alt="" style="width:48px;height:48px;border-radius:11px;object-fit:contain;background:#fff;padding:3px;border:1px solid var(--border);display:none">
@@ -328,7 +332,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
-let clubId=null, myRole="owner", clubMembers=[], clubDocs=[], actionsData=[], relancesData=[], notifsIn=[], clubSub={};
+let clubId=null, myRole="owner", clubMembers=[], clubDocs=[], actionsData=[], relancesData=[], notifsIn=[], clubSub={}, clubConnect={};
 const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
 let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
@@ -374,7 +378,8 @@ async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
   await joinClub();
-  await loadProfile(); renderSub(); applyPlanLimits(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); loadNotifs(); switchTab("today");
+  await loadProfile(); renderSub(); applyPlanLimits(); renderConnect(); loadConnect(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); loadNotifs(); switchTab("today");
+  if(new URLSearchParams(location.search).get("connect")==="done"){setTimeout(loadConnect,1500);alert("Configuration Stripe terminée. Vos encaissements se mettent à jour…");history.replaceState({},"",location.pathname);}
   if(new URLSearchParams(location.search).get("sub")==="success"){setTimeout(()=>loadProfile().then(()=>{renderSub();applyPlanLimits();}),2500);alert("Merci ! Votre abonnement est en cours d'activation. Le statut se met à jour dans quelques secondes.");history.replaceState({},"",location.pathname);}
 }
 async function joinClub(){
@@ -399,6 +404,7 @@ async function loadProfile(){
     clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
     if($("p-relance"))$("p-relance").checked=data.relance_auto!==false;
     clubSub={status:data.subscription_status||null,plan:data.subscription_plan||null,until:data.subscription_until||null,cancel:data.subscription_cancel===true};
+    clubConnect={account:data.stripe_account_id||null,enabled:data.stripe_charges_enabled===true};
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
     applyTheme(); updateTopLogo(); updateTopName(); showOffresView();
@@ -855,6 +861,27 @@ function renderSub(){
   else if(st==='trialing'){box.innerHTML=`<div style="background:var(--amberbg);border:1px solid #f0dcb8;border-radius:14px;padding:16px 18px;margin-top:8px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="width:44px;height:44px;border-radius:50%;background:var(--amber);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px"><i class="ti ti-gift"></i></div><div><div style="font-weight:600;font-size:15px">Essai gratuit en cours${s.plan?' · formule '+s.plan:''}</div><div class="muted" style="font-size:13px">${until?('Votre abonnement démarrera le '+until+'. Rien n\'est prélevé d\'ici là.'):'Profitez de toutes les fonctionnalités.'}</div></div></div>`+cancelRow;}
   else if(st==='past_due'){box.innerHTML=`<p style="margin:6px 0 2px"><span class="pill amber"><i class="ti ti-alert-triangle"></i> Paiement en attente</span></p><p class="muted" style="font-size:13px;margin-bottom:4px">Un souci est survenu sur le règlement. Relancez un paiement ci-dessous.</p>`+plans;}
   else{box.innerHTML=`<p style="font-size:14px;margin:8px 0 2px">Activez Sponsoclub et transformez votre recherche de partenaires. <b>Rentabilisé dès le premier sponsor signé.</b></p>`+plans;}
+}
+function renderConnect(){
+  const box=$("connect-box");if(!box)return;const cc=clubConnect||{};
+  if(cc.enabled){box.innerHTML=`<div style="background:var(--greenbg);border:1px solid #bfe3d4;border-radius:12px;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap"><i class="ti ti-circle-check" style="color:var(--green);font-size:26px"></i><div><div style="font-weight:600;font-size:15px">Encaissements activés</div><div class="muted" style="font-size:13px">Les paiements de vos sponsors arrivent directement sur votre compte.</div></div></div>`;}
+  else if(cc.account){box.innerHTML=`<p class="muted" style="font-size:13.5px;margin:4px 0 10px"><i class="ti ti-alert-circle" style="color:var(--amber)"></i> Configuration Stripe à finaliser pour recevoir les paiements.</p><button class="primary" onclick="connectStripe(this)"><i class="ti ti-arrow-right"></i> Finaliser la configuration</button>`;}
+  else{box.innerHTML=`<p class="muted" style="font-size:13.5px;margin:4px 0 10px">Connectez votre compte Stripe pour recevoir les paiements de vos sponsors <b>directement sur votre compte bancaire</b> (mise en place en 2 minutes).</p><button class="primary" onclick="connectStripe(this)"><i class="ti ti-building-bank"></i> Configurer les encaissements</button>`;}
+}
+async function connectStripe(btn){
+  const bo=btn?btn.innerHTML:"";if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Redirection…';}
+  try{const {data}=await sb.auth.getSession();const tok=data&&data.session&&data.session.access_token;
+    const r=await fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"connect",clubId,token:tok})});
+    const j=await r.json();if(!r.ok||j.error||!j.url)throw new Error(j.error||"Erreur");location.href=j.url;
+  }catch(e){alert("Erreur : "+e.message);if(btn){btn.disabled=false;btn.innerHTML=bo;}}
+}
+async function loadConnect(){
+  if(!clubId||!(clubConnect&&clubConnect.account)){renderConnect();return;}
+  try{const {data}=await sb.auth.getSession();const tok=data&&data.session&&data.session.access_token;
+    const r=await fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({action:"connect_status",clubId,token:tok})});
+    const j=await r.json();if(r.ok&&!j.error)clubConnect.enabled=!!j.charges_enabled;
+  }catch(e){}
+  renderConnect();
 }
 async function cancelSub(action){
   if(action!=='resume'&&!confirm("Résilier l'abonnement ? Vous gardez l'accès jusqu'à la fin de la période en cours."))return;
