@@ -58,13 +58,13 @@
   .stat .v{font-size:23px;font-weight:800;color:var(--accent);letter-spacing:-.01em}
   .stat .l{font-size:11.5px;color:var(--muted);margin-top:5px;line-height:1.35}
   .note{font-size:12.5px;color:var(--faint);margin-top:16px;line-height:1.5}
-  .posts{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
-  .post{border:1px solid var(--border);border-radius:12px;overflow:hidden;background:#fff}
-  .post-img{width:100%;aspect-ratio:1/1;background-size:cover;background-position:center;background-color:#eef0f3}
-  .post-img.noimg{display:flex;align-items:center;justify-content:center;color:var(--faint);font-size:28px}
-  .post-b{padding:10px 12px}
-  .post-cap{font-size:12.5px;line-height:1.4;color:var(--text);margin-bottom:6px}
-  .post-link{font-size:12px;color:var(--accent);text-decoration:none;font-weight:600}
+  .posts{display:flex;flex-direction:column;gap:14px;max-width:520px;margin:0 auto}
+  .post{border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#fff}
+  .post img.post-photo{width:100%;max-height:320px;object-fit:cover;display:block}
+  .post iframe{width:100%;border:0;display:block}
+  .post-b{padding:11px 14px}
+  .post-cap{font-size:13.5px;line-height:1.45;color:var(--text);margin-bottom:6px}
+  .post-link{font-size:12.5px;color:var(--accent);text-decoration:none;font-weight:600}
   /* FORM RECU */
   .frm{display:grid;margin-bottom:16px}
   .frm label{font-size:12px;color:var(--muted);font-weight:600;margin-top:10px;margin-bottom:4px}
@@ -104,6 +104,13 @@ async function load(){
 }
 function fail(t,m){$("app").innerHTML=`<div class="err"><i class="ti ti-link-off"></i><h1>${esc(t)}</h1><p>${esc(m)}</p></div>`;}
 let CLUB=null,SPONSOR=null;
+function postEmbed(u){
+  u=(u||'').trim();if(!u)return null;
+  if(/facebook\.com|fb\.watch/i.test(u)) return `<iframe src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(u)}&show_text=true&width=500" style="height:560px" scrolling="no" allowfullscreen loading="lazy"></iframe>`;
+  if(/instagram\.com/i.test(u)){const base=u.split('?')[0].replace(/\/$/,'');return `<iframe src="${base}/embed" style="height:640px" scrolling="no" loading="lazy"></iframe>`;}
+  if(/youtube\.com\/watch\?v=|youtu\.be\//i.test(u)){const id=(u.match(/[?&]v=([^&]+)/)||u.match(/youtu\.be\/([^?]+)/)||[])[1];if(id)return `<iframe src="https://www.youtube.com/embed/${id}" style="aspect-ratio:16/9;height:auto" allowfullscreen loading="lazy"></iframe>`;}
+  return null;
+}
 function render(d){
   const c=d.club,s=d.sponsor,cps=d.contreparties||[];CLUB=c;SPONSOR=s;
   document.documentElement.style.setProperty("--accent",c.primary||"#3b4cd8");
@@ -179,7 +186,13 @@ function render(d){
     <div class="card">
       <h2><span class="chip"><i class="ti ti-brand-instagram"></i></span> ${c.nom} parle de vous</h2>
       <div class="posts">
-        ${d.posts.map(po=>`<div class="post">${po.image?`<div class="post-img" style="background-image:url('${(po.image||'').replace(/'/g,"%27")}')"></div>`:`<div class="post-img noimg"><i class="ti ti-photo"></i></div>`}<div class="post-b"><div class="post-cap">${esc(po.caption)||'Publication'}</div>${po.url?`<a href="${esc(po.url)}" target="_blank" class="post-link"><i class="ti ti-external-link"></i> Voir le post</a>`:''}</div></div>`).join("")}
+        ${d.posts.map(po=>{
+          const emb=postEmbed(po.url);
+          const cap=po.caption?`<div class="post-b"><div class="post-cap">${esc(po.caption)}</div>${po.url?`<a href="${esc(po.url)}" target="_blank" class="post-link"><i class="ti ti-external-link"></i> Voir le post</a>`:''}</div>`:(po.url?`<div class="post-b"><a href="${esc(po.url)}" target="_blank" class="post-link"><i class="ti ti-external-link"></i> Voir le post</a></div>`:'');
+          if(emb)return `<div class="post">${emb}${cap}</div>`;
+          if(po.image)return `<div class="post"><img class="post-photo" src="${esc(po.image)}" alt="">${cap}</div>`;
+          return `<div class="post">${cap||'<div class="post-b post-cap">Publication</div>'}</div>`;
+        }).join("")}
       </div>
     </div>`:""}
 
