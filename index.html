@@ -164,6 +164,14 @@
         <div><label>Licenciés</label><input id="lic" type="number" value="240"></div>
         <div><label>Spectateurs / match</label><input id="spec" type="number" value="600"></div>
         <div><label>Abonnés réseaux</label><input id="res" type="number" value="3200"></div>
+        <div style="grid-column:1/-1;margin-top:6px;border-top:1px solid var(--border);padding-top:14px">
+          <label style="font-weight:600;color:var(--text);font-size:13.5px;margin-bottom:2px">Hypothèses de visibilité (page partenaire)</label>
+          <div class="muted" style="font-size:12px">Servent au calcul « votre logo vu X fois » affiché aux sponsors. Ajuste-les à la réalité du club.</div>
+        </div>
+        <div><label>Matchs à domicile / saison</label><input id="p-matchs" type="number" value="15"></div>
+        <div><label>Posts sponsors / saison</label><input id="p-posts" type="number" value="20"></div>
+        <div><label>Portée réseaux par post (%)</label><input id="p-portee" type="number" value="40"></div>
+        <div><label>Personnes par licencié</label><input id="p-entourage" type="number" value="2"></div>
         <div style="display:flex;align-items:flex-end">
           <button class="primary" onclick="saveProfile()"><i class="ti ti-device-floppy"></i> Enregistrer le profil</button>
         </div>
@@ -325,6 +333,10 @@ async function loadProfile(){
   const {data}=await sb.from("profiles").select("*").eq("id",clubId||user.id).maybeSingle();
   if(data){ $("nom").value=data.club_nom||""; $("adr").value=data.adresse||""; $("sport").value=data.sport||"Rugby";
     $("lic").value=data.licencies||240; $("spec").value=data.spectateurs||600; $("res").value=data.reseaux||3200;
+    if($("p-matchs"))$("p-matchs").value=data.viz_matchs||15;
+    if($("p-posts"))$("p-posts").value=data.viz_posts||20;
+    if($("p-portee"))$("p-portee").value=(data.viz_portee!=null?data.viz_portee:40);
+    if($("p-entourage"))$("p-entourage").value=data.viz_entourage||2;
     clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
@@ -338,7 +350,9 @@ function editProfile(){$("profile-summary").style.display="none";$("profile-edit
 async function saveProfile(){
   const row={id:clubId||user.id,club_nom:$("nom").value,adresse:$("adr").value,sport:$("sport").value,
     licencies:+$("lic").value||0,spectateurs:+$("spec").value||0,reseaux:+$("res").value||0,
-    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,mecenat:($("p-mecenat")?$("p-mecenat").checked:true),updated_at:new Date().toISOString()};
+    logo:clubLogo,couleur_primaire:clubPrimary,couleur_secondaire:clubSecondary,mecenat:($("p-mecenat")?$("p-mecenat").checked:true),
+    viz_matchs:(+($("p-matchs")&&$("p-matchs").value)||15),viz_posts:(+($("p-posts")&&$("p-posts").value)||20),viz_portee:(+($("p-portee")&&$("p-portee").value)||40),viz_entourage:(+($("p-entourage")&&$("p-entourage").value)||2),
+    updated_at:new Date().toISOString()};
   clubMecenat=row.mecenat;
   const {error}=await sb.from("profiles").upsert(row);
   $("status").innerHTML=error?('<span style="color:#a12">Erreur: '+error.message+'</span>'):'<i class="ti ti-circle-check" style="color:var(--green)"></i> Profil enregistré.';
