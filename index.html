@@ -803,8 +803,12 @@ async function saveContract(id){const ta=document.getElementById("ct-out");const
 function spaceUrl(tok){return location.origin+"/espace.html#"+tok;}
 function renderShare(id){const box=document.getElementById("sp-share");if(!box)return;const p=pipeData.find(x=>x.id===id);
   if(p&&p.share_token){const u=spaceUrl(p.share_token);
-    box.innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input readonly value="${u}" onclick="this.select()" style="flex:1;min-width:220px"><button class="primary" onclick="navigator.clipboard.writeText('${u}');this.innerHTML='<i class=\\'ti ti-check\\'></i> Copié'"><i class="ti ti-copy"></i> Copier</button><a href="${u}" target="_blank"><button type="button"><i class="ti ti-external-link"></i> Ouvrir</button></a></div>`;
-  }else{box.innerHTML=`<button onclick="shareSpace(${id},this)"><i class="ti ti-link"></i> Générer le lien partageable</button>`;}
+    box.innerHTML=`<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input readonly value="${u}" onclick="this.select()" style="flex:1;min-width:220px"><button class="primary" onclick="navigator.clipboard.writeText('${u}');this.innerHTML='<i class=\\'ti ti-check\\'></i> Copié'"><i class="ti ti-copy"></i> Copier</button><a href="${u}" target="_blank"><button type="button"><i class="ti ti-external-link"></i> Ouvrir</button></a></div>
+    <div style="margin-top:16px">
+      <div class="muted" style="font-size:12px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between"><span><i class="ti ti-eye"></i> Aperçu de la page partenaire</span><button onclick="document.getElementById('sp-preview').src=document.getElementById('sp-preview').src" style="padding:5px 9px;font-size:12px"><i class="ti ti-refresh"></i> Rafraîchir</button></div>
+      <div style="border:1px solid var(--border);border-radius:14px;overflow:hidden;background:#f4f5f7"><iframe id="sp-preview" src="${u}" style="width:100%;height:560px;border:0;display:block" title="Aperçu de la page partenaire" loading="lazy"></iframe></div>
+    </div>`;
+  }else{box.innerHTML=`<button onclick="shareSpace(${id},this)"><i class="ti ti-link"></i> Générer le lien partageable</button><p class="muted" style="font-size:12.5px;margin-top:8px">Génère le lien pour afficher l'aperçu de la page telle que le sponsor la verra.</p>`;}
 }
 async function shareSpace(id,btn){const tok=(Date.now().toString(36)+Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,8));
   if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Génération…';}
