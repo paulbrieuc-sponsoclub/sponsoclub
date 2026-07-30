@@ -14,7 +14,8 @@ module.exports = async (req, res) => {
       html
     };
     // Adresse de réponse unique : les réponses reviennent dans l'appli (via Resend Inbound)
-    if (replyToken) payload.reply_to = ['reponse+' + replyToken + '@sponsoclub.fr'];
+    const inDom = process.env.INBOUND_DOMAIN || 'aintuorkai.resend.app';
+    if (replyToken) payload.reply_to = ['reponse-' + replyToken + '@' + inDom];
     else if (replyTo) payload.reply_to = [replyTo];
     if (Array.isArray(attachments) && attachments.length) {
       payload.attachments = attachments

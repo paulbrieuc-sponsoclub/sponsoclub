@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
     // Adresse(s) destinataire : on cherche reponse+<id>@...
     const toRaw = d.to || d.recipient || d.envelope_to || (d.headers && d.headers.to) || '';
     const toStr = Array.isArray(toRaw) ? toRaw.join(',') : String(toRaw || '');
-    const m = toStr.match(/reponse\+(\d+)@/i);
+    const m = toStr.match(/reponse[-+](\d+)@/i);
     const pipelineId = m ? parseInt(m[1], 10) : null;
 
     // Contenu : présent dans le webhook ou à récupérer via l'API Resend
