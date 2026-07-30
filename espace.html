@@ -110,6 +110,9 @@ function render(d){
   const vueRes=Math.round((c.reseaux||0)*0.4*20);
   const vueFoyers=(c.licencies||0)*2;
   const total=vueStade+vueRes+vueFoyers;
+  const cpm=(s.montant&&total)?Math.max(1,Math.round(s.montant/(total/1000))):null;
+  const nbSupports=cps.length;
+  const moisExpo=9;
   const defisc=(c.mecenat&&s.montant)?`<div class="defisc"><i class="ti ti-discount-2"></i><div>Grâce au mécénat, après réduction d'impôt de 60 %, votre soutien ne vous coûte réellement que <b>${nb(Math.round(s.montant*0.4))} €</b>.</div></div>`:"";
   const statusTag = s.regle?`<span class="status ok"><i class="ti ti-circle-check-filled"></i> Partenariat réglé</span>`:(s.signe?`<span class="status ok"><i class="ti ti-writing-sign"></i> Contrat signé</span>`:`<span class="status">Partenariat en cours</span>`);
   $("app").innerHTML=`
@@ -140,14 +143,23 @@ function render(d){
     </div>
 
     <div class="card impact">
-      <h2><span class="chip"><i class="ti ti-trending-up"></i></span> Votre visibilité sur la saison</h2>
-      <div class="big">≈ ${nb(total)} <small>contacts touchés</small></div>
-      <div class="stats">
-        <div class="stat"><div class="v">${nb(vueStade)}</div><div class="l">vues au stade<br>${nb(c.spectateurs)}/match × ${matchs}</div></div>
-        <div class="stat"><div class="v">${nb(vueRes)}</div><div class="l">portée réseaux<br>${nb(c.reseaux)} abonnés</div></div>
-        <div class="stat"><div class="v">${nb(vueFoyers)}</div><div class="l">entourage<br>${nb(c.licencies)} licenciés</div></div>
+      <h2><span class="chip"><i class="ti ti-map-pin"></i></span> Votre exposition locale</h2>
+      <div class="big">≈ ${nb(total)} <small>contacts touchés sur la saison</small></div>
+      <div class="stats" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+        ${cpm!=null?`<div class="stat"><div class="v">${nb(cpm)} €</div><div class="l">pour 1 000 personnes touchées</div></div>`:''}
+        <div class="stat"><div class="v">~${moisExpo} mois</div><div class="l">de visibilité continue, toute la saison</div></div>
+        ${nbSupports?`<div class="stat"><div class="v">${nbSupports}</div><div class="l">supports de visibilité inclus</div></div>`:''}
+        <div class="stat"><div class="v">${nb(c.licencies)}</div><div class="l">familles locales, votre clientèle de proximité</div></div>
       </div>
-      <div class="note">Estimation indicative de visibilité sur une saison (panneau au stade, tenues, relais réseaux). Ce n'est pas une garantie de chiffre d'affaires.</div>
+      <div style="margin-top:18px;border-top:1px dashed color-mix(in srgb,var(--sec) 40%,#fff);padding-top:14px">
+        <div class="muted" style="font-size:12px;font-weight:600;margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em">D'où vient cette audience</div>
+        <div class="stats">
+          <div class="stat"><div class="v">${nb(vueStade)}</div><div class="l">vues au stade<br>${nb(c.spectateurs)}/match × ${matchs}</div></div>
+          <div class="stat"><div class="v">${nb(vueRes)}</div><div class="l">portée réseaux<br>${nb(c.reseaux)} abonnés</div></div>
+          <div class="stat"><div class="v">${nb(vueFoyers)}</div><div class="l">bouche-à-oreille<br>${nb(c.licencies)} licenciés</div></div>
+        </div>
+      </div>
+      <div class="note">Estimation indicative de visibilité sur une saison (panneau au stade, tenues, relais réseaux, site & newsletter). Ce n'est pas une garantie de chiffre d'affaires — mais une présence durable auprès d'un public local et fidèle.</div>
     </div>
 
     ${(c.mecenat&&s.montant)?`
