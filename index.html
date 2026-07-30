@@ -129,7 +129,8 @@
   </div>
   <div class="wrap">
     <div class="tabs">
-      <button class="tabbtn active" data-tab="sponsors" onclick="switchTab('sponsors')"><i class="ti ti-map-search"></i> Sponsors</button>
+      <button class="tabbtn active" data-tab="sponsors" onclick="switchTab('sponsors')"><i class="ti ti-map-search"></i> Prospection</button>
+      <button class="tabbtn" data-tab="partners" onclick="switchTab('partners')"><i class="ti ti-heart-handshake"></i> Partenaires</button>
       <button class="tabbtn" data-tab="offres" onclick="switchTab('offres')"><i class="ti ti-tag"></i> Offres</button>
       <button class="tabbtn" data-tab="profil" onclick="switchTab('profil')"><i class="ti ti-settings"></i> Profil du club</button>
     </div>
@@ -231,8 +232,16 @@
     </div>
 
     <div class="sect tabpage tab-sponsors">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <h2 style="margin:0">Pipeline <span class="muted" id="pipcount"></span></h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <h2 style="margin:0">Prospects — à signer <span class="muted" id="pipcount"></span></h2>
+        <button onclick="addPartner()"><i class="ti ti-plus"></i> Ajouter un prospect</button>
+      </div>
+      <div class="card" id="pipeline"><div class="empty">Chargement…</div></div>
+    </div>
+
+    <div class="sect tabpage tab-partners">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+        <h2 style="margin:0">Partenaires actuels <span class="muted" id="partcount"></span></h2>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button onclick="downloadModel()"><i class="ti ti-file-spreadsheet"></i> Modèle Excel</button>
           <button onclick="document.getElementById('import-file').click()"><i class="ti ti-upload"></i> Importer</button>
@@ -240,7 +249,7 @@
           <button onclick="addPartner()"><i class="ti ti-plus"></i> Ajouter</button>
         </div>
       </div>
-      <div class="card" id="pipeline"><div class="empty">Chargement…</div></div>
+      <div class="card" id="partners"><div class="empty">Chargement…</div></div>
     </div>
 
     <div class="sect tabpage tab-sponsors">
@@ -572,16 +581,21 @@ async function loadPipe(){
   if(error){$("pipeline").innerHTML='<div class="empty">Erreur: '+error.message+'</div>';return;}
   pipeData=data||[];
   renderKpis();
-  $("pipcount").textContent=pipeData.length?("· "+pipeData.length):"";
-  if(!pipeData.length){$("pipeline").innerHTML='<div class="empty">Ajoute une entreprise depuis « Dossier ».</div>';return;}
   const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
-  $("pipeline").innerHTML=pipeData.map(p=>`<div class="item"><div class="ic"><i class="ti ti-building-store"></i></div>
+  const row=p=>`<div class="item"><div class="ic"><i class="ti ti-building-store"></i></div>
     <div class="grow"><div class="t">${p.name}</div><div class="s">${p.categorie||""}${p.pack?" · "+p.pack:""}${p.montant?" · "+p.montant+" €":""}${p.next_action?' · <span style="color:var(--amber)">→ '+p.next_action+'</span>':""}</div></div>
     <div class="acts">
       <button class="primary" onclick="openSponsor(${p.id})"><i class="ti ti-settings"></i> Gérer</button>
       <select onchange="setStatut(${p.id},this.value)" class="statut-sel">${opts.map(o=>`<option ${p.statut===o?"selected":""}>${o}</option>`).join("")}</select>
       <button onclick="delPipe(${p.id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button>
-    </div></div>`).join("");
+    </div></div>`;
+  const enCours=pipeData.filter(p=>p.statut!=="Signé");
+  const actuels=pipeData.filter(p=>p.statut==="Signé");
+  $("pipcount").textContent=enCours.length?("· "+enCours.length):"";
+  $("pipeline").innerHTML=enCours.length?enCours.map(row).join(""):'<div class="empty">Aucun prospect en cours. Détecte des entreprises ci-dessus, ou ajoutes-en un.</div>';
+  const tot=actuels.reduce((s,p)=>s+(+p.montant||0),0);
+  if($("partcount"))$("partcount").textContent=actuels.length?("· "+actuels.length+" partenaire"+(actuels.length>1?"s":"")+(tot?" · "+tot.toLocaleString('fr-FR')+" €":"")):"";
+  if($("partners"))$("partners").innerHTML=actuels.length?actuels.map(row).join(""):'<div class="empty">Aucun partenaire signé pour l\'instant. Passe un prospect en « Signé » pour le retrouver ici.</div>';
 }
 function renderKpis(){
   const signes=pipeData.filter(p=>p.statut==="Signé");
