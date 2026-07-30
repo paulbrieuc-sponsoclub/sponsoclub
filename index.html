@@ -981,6 +981,11 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
     </div>
 
     <div class="sp-page" data-p="paiement">
+      <div style="background:var(--accentbg);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+        <div style="font-weight:600;font-size:14px;margin-bottom:4px"><i class="ti ti-credit-card"></i> Paiement en ligne (Stripe)</div>
+        <p class="muted" style="font-size:13px;margin-bottom:10px">Génère un lien de paiement du montant du sponsoring à envoyer au partenaire. Quand il paie, le statut passe <b>automatiquement</b> à « Réglé ».</p>
+        <button class="primary" onclick="genPayLink(${id},this)"><i class="ti ti-link"></i> Générer un lien de paiement</button>
+      </div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
         <div style="flex:1;min-width:220px"><label>Lien de paiement (Stripe, HelloAsso, virement…)</label><input id="sp-paylink" value="${(p.payment_link||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
         <button id="sp-pay-btn" onclick="togglePaid(${id},this)">${p.payment_status==='Réglé'?'<i class="ti ti-rotate"></i> Marquer non réglé':'<i class="ti ti-check"></i> Marquer payé'}</button>
@@ -1006,6 +1011,21 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
   renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);loadPosts(id);spTab(tab||'offre');
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
+}
+async function genPayLink(id,btn){
+  const p=pipeData.find(x=>x.id===id);
+  if(!p||!(+p.montant)){alert("Renseigne d'abord un montant dans l'onglet Offre, puis Enregistre.");return;}
+  const bo=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spin"></span> Création…';
+  try{
+    const {data}=await sb.auth.getSession();const tok=data&&data.session&&data.session.access_token;
+    const r=await fetch("/api/paylink",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({clubId,pipelineId:id,token:tok})});
+    const j=await r.json();if(!r.ok||j.error||!j.url)throw new Error(j.error||"Erreur");
+    if($("sp-paylink"))$("sp-paylink").value=j.url;
+    await sb.from("pipeline").update({payment_link:j.url}).eq("id",id);if(p)p.payment_link=j.url;
+    try{await navigator.clipboard.writeText(j.url);}catch(e){}
+    alert("Lien de paiement créé et copié ✅\n\nEnvoie-le au sponsor. Dès qu'il paie, le statut passera à « Réglé » automatiquement.");
+  }catch(e){alert("Erreur : "+e.message);}
+  finally{btn.disabled=false;btn.innerHTML=bo;}
 }
 async function togglePaid(id,btn){
   const p=pipeData.find(x=>x.id===id);const now=p&&p.payment_status==="Réglé";
