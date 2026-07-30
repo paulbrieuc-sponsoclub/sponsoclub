@@ -106,9 +106,11 @@ function fail(t,m){$("app").innerHTML=`<div class="err"><i class="ti ti-link-off
 let CLUB=null,SPONSOR=null;
 function postEmbed(u){
   u=(u||'').trim();if(!u)return null;
-  if(/facebook\.com|fb\.watch/i.test(u)) return `<iframe src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(u)}&show_text=true&width=500" style="height:560px" scrolling="no" allowfullscreen loading="lazy"></iframe>`;
-  if(/instagram\.com/i.test(u)){const base=u.split('?')[0].replace(/\/$/,'');return `<iframe src="${base}/embed" style="height:640px" scrolling="no" loading="lazy"></iframe>`;}
-  if(/youtube\.com\/watch\?v=|youtu\.be\//i.test(u)){const id=(u.match(/[?&]v=([^&]+)/)||u.match(/youtu\.be\/([^?]+)/)||[])[1];if(id)return `<iframe src="https://www.youtube.com/embed/${id}" style="aspect-ratio:16/9;height:auto" allowfullscreen loading="lazy"></iframe>`;}
+  const ig=u.match(/instagram\.com\/(?:[^\/?]+\/)?(p|reel|tv)\/([A-Za-z0-9_-]+)/i);
+  if(ig) return `<iframe src="https://www.instagram.com/${ig[1].toLowerCase()}/${ig[2]}/embed" style="height:660px" scrolling="no" loading="lazy"></iframe>`;
+  if(/facebook\.com|fb\.watch|fb\.me/i.test(u)) return `<iframe src="https://www.facebook.com/plugins/post.php?href=${encodeURIComponent(u)}&show_text=true&width=500" style="height:600px" scrolling="no" allowfullscreen loading="lazy"></iframe>`;
+  const yt=u.match(/[?&]v=([^&]+)/)||u.match(/youtu\.be\/([^?]+)/);
+  if(yt) return `<iframe src="https://www.youtube.com/embed/${yt[1]}" style="aspect-ratio:16/9;height:auto" allowfullscreen loading="lazy"></iframe>`;
   return null;
 }
 function render(d){
