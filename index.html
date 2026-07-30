@@ -135,17 +135,17 @@
   </div>
   <div class="wrap">
     <div class="tabs">
-      <button class="tabbtn active" data-tab="today" onclick="switchTab('today')"><i class="ti ti-sun"></i> Aujourd'hui</button>
+      <button class="tabbtn active" data-tab="today" onclick="switchTab('today')"><i class="ti ti-layout-dashboard"></i> Tableau de bord</button>
       <button class="tabbtn" data-tab="sponsors" onclick="switchTab('sponsors')"><i class="ti ti-map-search"></i> Prospection</button>
       <button class="tabbtn" data-tab="partners" onclick="switchTab('partners')"><i class="ti ti-heart-handshake"></i> Partenaires</button>
       <button class="tabbtn" data-tab="offres" onclick="switchTab('offres')"><i class="ti ti-tag"></i> Offres</button>
       <button class="tabbtn" data-tab="profil" onclick="switchTab('profil')"><i class="ti ti-settings"></i> Profil du club</button>
     </div>
     <div class="sect tabpage tab-today" style="margin-top:0">
-      <h2 id="today-greet" style="margin-bottom:16px">À faire aujourd'hui</h2>
+      <h2 id="today-greet" style="margin-bottom:16px">Tableau de bord</h2>
+      <div id="kpis" style="margin-bottom:22px"></div>
       <div id="today"><div class="empty">Chargement…</div></div>
     </div>
-    <div id="kpis" class="tabpage tab-sponsors"></div>
     <div class="card tabpage tab-profil">
       <div id="profile-summary" style="display:none">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
@@ -272,7 +272,7 @@
       <div class="card" id="partners"><div class="empty">Chargement…</div></div>
     </div>
 
-    <div class="sect tabpage tab-sponsors">
+    <div class="sect tabpage tab-today">
       <h2>Actions à mener <span class="muted" id="actcount"></span></h2>
       <div class="card" style="padding:16px 18px">
         <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
@@ -301,7 +301,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
-let clubId=null, myRole="owner", clubMembers=[], clubDocs=[], actionsData=[], relancesData=[];
+let clubId=null, myRole="owner", clubMembers=[], clubDocs=[], actionsData=[], relancesData=[], notifsIn=[];
 const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
 let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
@@ -347,7 +347,7 @@ async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
   await joinClub();
-  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); if($("f-dist"))updateRayon($("f-dist").value); switchTab("today");
+  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); loadNotifs(); if($("f-dist"))updateRayon($("f-dist").value); switchTab("today");
 }
 async function joinClub(){
   clubId=user.id; // repli par défaut
@@ -625,9 +625,18 @@ function renderToday(){
   const now=Date.now(),DAY=86400000;
   const endToday=new Date();endToday.setHours(23,59,59,999);
   const nom=($("nom")&&$("nom").value)||"";
-  const g=$("today-greet");if(g)g.textContent="À faire aujourd'hui"+(nom?" · "+nom:"");
+  const g=$("today-greet");if(g)g.textContent="Tableau de bord"+(nom?" · "+nom:"");
   const secs=[];
   const line=(icon,color,title,sub,id,tab)=>`<div class="item"><div class="ic" style="background:${color}22;color:${color}"><i class="ti ${icon}"></i></div><div class="grow"><div class="t">${title}</div>${sub?`<div class="s">${sub}</div>`:""}</div><button class="primary" onclick="openSponsor(${id},'${tab||'offre'}')"><i class="ti ti-arrow-right"></i> Ouvrir</button></div>`;
+  // 0. Notifications / activité récente
+  const notifs=[];
+  notifsIn.forEach(e=>{const p=pipeData.find(x=>x.id===e.pipeline_id)||{};notifs.push({t:e.sent_at?new Date(e.sent_at).getTime():0,icon:"ti-message-2",color:"#159169",txt:"<b>"+((p.name||e.from_email||"Un partenaire")+"").replace(/</g,"&lt;")+"</b> a répondu à un email",id:e.pipeline_id,tab:"mail",date:e.sent_at});});
+  pipeData.forEach(p=>{
+    if(p.paid_at)notifs.push({t:new Date(p.paid_at).getTime(),icon:"ti-cash",color:"#159169",txt:"<b>"+(p.name||'').replace(/</g,"&lt;")+"</b> a réglé"+(p.montant?" "+(+p.montant).toLocaleString('fr-FR')+" €":""),id:p.id,tab:"paiement",date:p.paid_at});
+    if(p.signe_at)notifs.push({t:new Date(p.signe_at).getTime(),icon:"ti-writing-sign",color:"#3b4cd8",txt:"<b>"+(p.name||'').replace(/</g,"&lt;")+"</b> — contrat signé",id:p.id,tab:"offre",date:p.signe_at});
+  });
+  notifs.sort((a,b)=>b.t-a.t);
+  if(notifs.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-bell" style="color:var(--accent)"></i> Notifications récentes</h3><div class="card">${notifs.slice(0,8).map(n=>`<div class="item"><div class="ic" style="background:${n.color}22;color:${n.color}"><i class="ti ${n.icon}"></i></div><div class="grow"><div class="t">${n.txt}</div><div class="s">${n.date?timeAgo(n.date):""}</div></div><button onclick="openSponsor(${n.id},'${n.tab}')" aria-label="Ouvrir" style="padding:8px"><i class="ti ti-arrow-right"></i></button></div>`).join("")}</div></div>`);
   // 1. Relances programmées (validées par le club, en attente d'envoi)
   const prog=relancesData.filter(r=>r.status==="programmé");
   if(prog.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-clock-hour-4" style="color:var(--accent)"></i> Relances programmées (${prog.length})</h3><div class="card">${prog.map(r=>{const p=pipeData.find(x=>x.id===r.pipeline_id)||{};const d=r.scheduled_for?new Date(r.scheduled_for).toLocaleDateString('fr-FR'):"";return `<div class="item"><div class="ic" style="background:#3b4cd822;color:#3b4cd8"><i class="ti ti-mail-forward"></i></div><div class="grow"><div class="t">${(p.name||'Partenaire').replace(/</g,"&lt;")}</div><div class="s">Relance prévue le ${d}</div></div><div class="acts"><button onclick="sendRelanceRow(${r.id},this)"><i class="ti ti-send"></i> Envoyer</button><button onclick="cancelRelance(${r.id})" aria-label="Annuler" style="padding:8px"><i class="ti ti-x"></i></button></div></div>`;}).join("")}</div></div>`);
@@ -645,6 +654,12 @@ function renderToday(){
   const taches=actionsData.filter(a=>!a.fait&&a.echeance&&new Date(a.echeance).getTime()<=endToday.getTime());
   if(taches.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-checklist" style="color:var(--accent)"></i> Tâches du jour (${taches.length})</h3><div class="card">${taches.map(a=>`<div class="item"><input type="checkbox" onchange="toggleAction(${a.id},this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;cursor:pointer"><div class="grow"><div class="t">${(a.titre||'').replace(/</g,"&lt;")}</div><div class="s"><i class="ti ti-calendar"></i> ${new Date(a.echeance).toLocaleDateString('fr-FR')}</div></div></div>`).join("")}</div></div>`);
   box.innerHTML=secs.length?secs.join(""):'<div class="card"><div class="empty"><i class="ti ti-mood-smile" style="font-size:30px;color:var(--green)"></i><div style="margin-top:8px">Rien d\'urgent aujourd\'hui. Beau travail 👌</div><div style="font-size:13px;margin-top:4px">Va dans <b>Prospection</b> pour détecter de nouveaux partenaires.</div></div></div>';
+}
+function timeAgo(d){const s=(Date.now()-new Date(d).getTime())/1000;if(s<60)return "à l'instant";const m=s/60;if(m<60)return "il y a "+Math.round(m)+" min";const h=m/60;if(h<24)return "il y a "+Math.round(h)+" h";const j=h/24;if(j<30)return "il y a "+Math.round(j)+" j";return new Date(d).toLocaleDateString('fr-FR');}
+async function loadNotifs(){
+  if(!clubId)return;
+  const {data}=await sb.from("emails").select("pipeline_id,from_email,sent_at").eq("direction","in").order("sent_at",{ascending:false}).limit(20);
+  notifsIn=data||[];renderToday();
 }
 async function loadRelances(){
   if(!clubId)return;
@@ -974,7 +989,7 @@ async function loadSponsorMails(id){
 }
 function dlDoc(taId,name){const ta=document.getElementById(taId);const esc=ta.value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+esc+'</body></html>';const blob=new Blob(["﻿",html],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(name||"document")+".doc";document.body.appendChild(a);a.click();a.remove();}
 function renderContractBox(text,id,signed){document.getElementById("sp-contract").innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${(text||"").replace(/</g,"&lt;")}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button><button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button><span id="ct-status" style="color:var(--green);font-size:12px"></span></div><label class="cp" style="max-width:240px;margin-top:10px"><input type="checkbox" ${signed?"checked":""} onchange="setSigned(${id},this.checked)"><span>Contrat signé</span></label>`;}
-async function setSigned(id,val){const {error}=await sb.from("pipeline").update({contrat_signe:val}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat_signe=val;if(error)alert("Erreur: "+error.message);}
+async function setSigned(id,val){const upd={contrat_signe:val,signe_at:(val?new Date().toISOString():null)};const {error}=await sb.from("pipeline").update(upd).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p){p.contrat_signe=val;p.signe_at=upd.signe_at;}if(error)alert("Erreur: "+error.message);else renderToday();}
 async function saveContract(id){const ta=document.getElementById("ct-out");const {error}=await sb.from("pipeline").update({contrat:ta.value}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat=ta.value;const st=document.getElementById("ct-status");if(st){if(error){st.style.color="#a12";st.textContent="Erreur : "+error.message;}else{st.style.color="var(--green)";st.textContent="Enregistré ✓";}}}
 function spaceUrl(tok){return location.origin+"/espace.html#"+tok;}
 function renderShare(id){const box=document.getElementById("sp-share");if(!box)return;const p=pipeData.find(x=>x.id===id);
