@@ -625,13 +625,13 @@ function renderToday(){
   const nom=($("nom")&&$("nom").value)||"";
   const g=$("today-greet");if(g)g.textContent="À faire aujourd'hui"+(nom?" · "+nom:"");
   const secs=[];
-  const line=(icon,color,title,sub,id)=>`<div class="item"><div class="ic" style="background:${color}22;color:${color}"><i class="ti ${icon}"></i></div><div class="grow"><div class="t">${title}</div>${sub?`<div class="s">${sub}</div>`:""}</div><button class="primary" onclick="openSponsor(${id})"><i class="ti ti-arrow-right"></i> Ouvrir</button></div>`;
+  const line=(icon,color,title,sub,id,tab)=>`<div class="item"><div class="ic" style="background:${color}22;color:${color}"><i class="ti ${icon}"></i></div><div class="grow"><div class="t">${title}</div>${sub?`<div class="s">${sub}</div>`:""}</div><button class="primary" onclick="openSponsor(${id},'${tab||'offre'}')"><i class="ti ti-arrow-right"></i> Ouvrir</button></div>`;
   // 1. Relances à faire (contacté depuis > 5 jours, pas de réponse détectée)
   const relances=pipeData.filter(p=>p.statut==="Contacté"&&p.email_sent_at&&(now-new Date(p.email_sent_at).getTime()>5*DAY));
-  if(relances.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-mail-forward" style="color:var(--amber)"></i> Relances à faire (${relances.length})</h3><div class="card">${relances.map(p=>{const j=Math.round((now-new Date(p.email_sent_at).getTime())/DAY);return line("ti-building-store","#b5730f",p.name,"Contacté il y a "+j+" jours, sans réponse",p.id);}).join("")}</div></div>`);
+  if(relances.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-mail-forward" style="color:var(--amber)"></i> Relances à faire (${relances.length})</h3><div class="card">${relances.map(p=>{const j=Math.round((now-new Date(p.email_sent_at).getTime())/DAY);return line("ti-building-store","#b5730f",p.name,"Contacté il y a "+j+" jours, sans réponse",p.id,'mail');}).join("")}</div></div>`);
   // 2. Paiements en attente (signé, pas réglé)
   const paie=pipeData.filter(p=>p.statut==="Signé"&&p.payment_status!=="Réglé");
-  if(paie.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-cash" style="color:var(--green)"></i> Paiements à encaisser (${paie.length})</h3><div class="card">${paie.map(p=>line("ti-receipt","#159169",p.name,(p.montant?p.montant.toLocaleString('fr-FR')+" € — ":"")+"à encaisser",p.id)).join("")}</div></div>`);
+  if(paie.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-cash" style="color:var(--green)"></i> Paiements à encaisser (${paie.length})</h3><div class="card">${paie.map(p=>line("ti-receipt","#159169",p.name,(p.montant?p.montant.toLocaleString('fr-FR')+" € — ":"")+"à encaisser",p.id,'paiement')).join("")}</div></div>`);
   // 3. Prochaines actions planifiées sur un sponsor
   const na=pipeData.filter(p=>p.next_action&&(""+p.next_action).trim());
   if(na.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-flag" style="color:var(--accent)"></i> Prochaines actions (${na.length})</h3><div class="card">${na.map(p=>line("ti-building-store","#3b4cd8",p.name,"→ "+(""+p.next_action).replace(/</g,"&lt;"),p.id)).join("")}</div></div>`);
@@ -675,7 +675,7 @@ function spTab(n){document.querySelectorAll(".sp-page").forEach(el=>el.classList
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
 function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
 function packChanged(){const pack=$("sp-pack").value;renderCps(pack);const o=offreByName(pack);const mt=$("sp-montant");if(o&&o.prix&&(!mt.value||mt.dataset.auto==="1")){mt.value=o.prix;mt.dataset.auto="1";}}
-function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||((clubOffres||DEFAULT_OFFRES)[0]||{}).nom||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
+function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||((clubOffres||DEFAULT_OFFRES)[0]||{}).nom||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
   $("dlg-title").textContent="Gérer · "+p.name;
   $("dlg-body").innerHTML=`
     <div class="sp-tabs">
@@ -731,7 +731,7 @@ function openSponsor(id){const p=pipeData.find(x=>x.id===id);if(!p)return;spSave
       <p class="muted" style="font-size:13px;margin-bottom:12px">Une page publique aux couleurs du club — formule, contreparties livrées et visibilité estimée. À envoyer au sponsor comme preuve de ce qu'il reçoit.</p>
       <div id="sp-share"></div>
     </div>`;
-  renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);spTab('offre');
+  renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);spTab(tab||'offre');
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
