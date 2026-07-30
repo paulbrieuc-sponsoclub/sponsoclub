@@ -23,8 +23,8 @@ module.exports = async (req, res) => {
     const montant = Math.round((+row.montant || 0) * 100);
     if (montant < 100) { res.status(400).json({ error: 'Renseigne d\'abord un montant (≥ 1 €) dans l\'onglet Offre.' }); return; }
 
-    let clubNom = 'le club';
-    try { const pf = await (await fetch(url + '/rest/v1/profiles?id=eq.' + encodeURIComponent(row.club_id) + '&select=club_nom&limit=1', { headers: h })).json(); if (Array.isArray(pf) && pf[0]) clubNom = pf[0].club_nom || clubNom; } catch (e) {}
+    let clubNom = 'le club', acct = null, chargesOk = false;
+    try { const pf = await (await fetch(url + '/rest/v1/profiles?id=eq.' + encodeURIComponent(row.club_id) + '&select=club_nom,stripe_account_id,stripe_charges_enabled&limit=1', { headers: h })).json(); if (Array.isArray(pf) && pf[0]) { clubNom = pf[0].club_nom || clubNom; acct = pf[0].stripe_account_id || null; chargesOk = pf[0].stripe_charges_enabled === true; } } catch (e) {}
 
     const params = new URLSearchParams();
     params.set('mode', 'payment');
@@ -36,6 +36,14 @@ module.exports = async (req, res) => {
     params.set('line_items[0][price_data][unit_amount]', String(montant));
     params.set('line_items[0][price_data][product_data][name]', 'Partenariat ' + clubNom + ' — ' + (row.name || 'sponsor'));
     params.set('payment_intent_data[metadata][pipeline_id]', String(pipelineId));
+
+    // Si le club a connecté son compte Stripe : l'argent va DIRECTEMENT au club (destination charge),
+    // avec une commission plateforme optionnelle (PLATFORM_FEE_PCT).
+    if (acct && chargesOk) {
+      params.set('payment_intent_data[transfer_data][destination]', acct);
+      const feePct = +(process.env.PLATFORM_FEE_PCT || 0);
+      if (feePct > 0) params.set('payment_intent_data[application_fee_amount]', String(Math.round(montant * feePct / 100)));
+    }
 
     const r = await fetch('https://api.stripe.com/v1/checkout/sessions', {
       method: 'POST',
