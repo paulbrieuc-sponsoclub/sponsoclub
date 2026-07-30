@@ -19,6 +19,12 @@ module.exports = async (req, res) => {
     const cpList = (off && Array.isArray(off.contreparties)) ? off.contreparties : [];
     const done = row.contreparties || {};
     const contreparties = cpList.map(c => ({ label: c, done: done[c] === true }));
+    // Publications où le partenaire est mentionné
+    let posts = [];
+    try {
+      const po = await (await fetch(url + '/rest/v1/posts?pipeline_id=eq.' + row.id + '&select=url,image,caption,created_at&order=created_at.desc&limit=12', { headers: h })).json();
+      if (Array.isArray(po)) posts = po;
+    } catch (e) {}
     res.setHeader('Cache-Control', 'public, max-age=60');
     res.status(200).json({
       club: {
@@ -33,7 +39,8 @@ module.exports = async (req, res) => {
         name: row.name || 'Partenaire', pack: row.pack || '', montant: +row.montant || 0,
         statut: row.statut || '', signe: row.contrat_signe === true, regle: row.payment_status === 'Réglé'
       },
-      contreparties
+      contreparties,
+      posts
     });
   } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); }
 };
