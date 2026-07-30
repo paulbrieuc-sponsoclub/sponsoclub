@@ -81,9 +81,9 @@
   .opick{border:1px solid var(--bstrong);border-radius:11px;padding:12px 13px;cursor:pointer;transition:.12s;background:var(--surface)}
   .opick:hover{border-color:var(--accent)}
   .opick.sel{border:2px solid var(--accent);background:var(--accentbg);padding:11px 12px}
-  .opick .on{font-weight:600;font-size:13.5px}
-  .opick .op{color:var(--accenttx);font-weight:700;font-size:16px;margin:1px 0 7px}
-  .opick .oc{font-size:11.5px;color:var(--muted);line-height:1.5}
+  .opick .on{font-weight:600;font-size:13.5px;text-align:center}
+  .opick .op{color:var(--accenttx);font-weight:700;font-size:16px;margin:1px 0 8px;text-align:center}
+  .opick .oc{font-size:11.5px;color:var(--muted);line-height:1.5;border-top:1px solid var(--border);padding-top:8px}
   /* auth */
   #auth{max-width:400px;margin:8vh auto;padding:0 20px}
   .authcard{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 24px;box-shadow:0 4px 20px rgba(16,24,40,.06)}
@@ -813,8 +813,13 @@ function switchTab(name){document.querySelectorAll(".tabpage").forEach(el=>{el.s
 function spTab(n){document.querySelectorAll(".sp-page").forEach(el=>el.classList.toggle("on",el.dataset.p===n));document.querySelectorAll(".sp-tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.p===n));const b=document.querySelector(".dlg-b");if(b)b.scrollTop=0;}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
 function renderCps(pack){$("sp-cps").innerHTML=contrepartiesFor(pack).map(c=>`<label class="cp"><input type="checkbox" data-cp="${c}" ${spSaved[c]?"checked":""}><span>${c}</span></label>`).join("");}
+function shortCp(c){c=(c||'').trim();
+  const rules=[[/^logo sur le maillot/i,'Logo maillot'],[/^logo sur le short/i,'Logo short'],[/^logo sur le site/i,'Logo site'],[/^logo sur l['’]affiche/i,'Affiche saison'],[/^panneau/i,'Panneau stade'],[/^b[âa]che/i,'Bâche stade'],[/^invitation vip/i,'Invitation VIP'],[/^un match parrain/i,'Match parrainé'],[/^citation dans la newsletter/i,'Newsletter'],[/^mention au micro/i,'Micro au stade'],[/^mise en avant/i,'Tous supports'],[/re[çc]u fiscal/i,'Reçu fiscal −60 %'],[/^nom cit/i,'Cité mécène'],[/^remerciement/i,'Remerciement réseaux']];
+  for(const [re,rep] of rules){if(re.test(c))return rep;}
+  return c.replace(/ sur (les|le|la|l['’])/gi,' ').replace(/ au /gi,' ').replace(/\bpublicitaire\b/gi,'').replace(/\bofficiel\b/gi,'').replace(/\s{2,}/g,' ').trim();
+}
 function renderOffrePick(){const box=$("sp-offres");if(!box)return;const cur=$("sp-pack")?$("sp-pack").value:"";const list=clubOffres||DEFAULT_OFFRES;
-  box.innerHTML=list.map(o=>`<div class="opick ${o.nom===cur?'sel':''}" onclick="selectPack('${(o.nom||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')"><div class="on">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="op">${(+o.prix||0).toLocaleString('fr-FR')} €<span style="font-size:11px;color:var(--faint);font-weight:400"> /an</span></div><div class="oc">${(o.contreparties||[]).slice(0,5).map(c=>'• '+(c||'').replace(/</g,'&lt;')).join('<br>')}</div></div>`).join("");
+  box.innerHTML=list.map(o=>`<div class="opick ${o.nom===cur?'sel':''}" onclick="selectPack('${(o.nom||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}')"><div class="on">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="op">${(+o.prix||0).toLocaleString('fr-FR')} €<span style="font-size:11px;color:var(--faint);font-weight:400"> /an</span></div><div class="oc">${(o.contreparties||[]).slice(0,5).map(c=>'• '+shortCp(c).replace(/</g,'&lt;')).join('<br>')}</div></div>`).join("");
 }
 function selectPack(nom){if($("sp-pack"))$("sp-pack").value=nom;const o=offreByName(nom);const mt=$("sp-montant");if(o&&o.prix&&mt&&(!mt.value||mt.dataset.auto==="1")){mt.value=o.prix;mt.dataset.auto="1";}renderOffrePick();renderCps(nom);}
 function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;spSaved=p.contreparties||{};const pack=p.pack||((clubOffres||DEFAULT_OFFRES)[0]||{}).nom||"Argent";const opts=["À contacter","Contacté","RDV","Signé","Perdu"];
