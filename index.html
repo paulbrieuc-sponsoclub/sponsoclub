@@ -1007,9 +1007,12 @@ async function togglePaid(id,btn){
   const p=pipeData.find(x=>x.id===id);const now=p&&p.payment_status==="Réglé";
   const ns=now?"Non réglé":"Réglé";const pa=now?null:new Date().toISOString();
   const link=$("sp-paylink").value;
-  const {error}=await sb.from("pipeline").update({payment_status:ns,paid_at:pa,payment_link:link}).eq("id",id);
+  const upd={payment_status:ns,paid_at:pa,payment_link:link};
+  if(ns==="Réglé")upd.statut="Signé";
+  const {error}=await sb.from("pipeline").update(upd).eq("id",id);
   if(error){alert("Erreur: "+error.message);return;}
-  if(p){p.payment_status=ns;p.paid_at=pa;p.payment_link=link;}
+  if(p){p.payment_status=ns;p.paid_at=pa;p.payment_link=link;if(ns==="Réglé")p.statut="Signé";}
+  if(ns==="Réglé"&&$("sp-statut"))$("sp-statut").value="Signé";
   const st=$("sp-pay-status");st.className="pill "+(ns==="Réglé"?"green":"amber");st.textContent=ns+(pa?(" · "+new Date(pa).toLocaleDateString("fr-FR")):"");
   btn.innerHTML=ns==="Réglé"?'<i class="ti ti-rotate"></i> Marquer non réglé':'<i class="ti ti-check"></i> Marquer payé';
   loadPipe();
@@ -1115,7 +1118,8 @@ async function genContract(id,btn){const p=pipeData.find(x=>x.id===id);const box
   box.innerHTML='<div style="padding:8px 0"><span class="spin"></span> Rédaction du contrat par l\'IA…</div>';
   const pack=$("sp-pack").value;
   const cps=contrepartiesFor(pack).filter(c=>{const cb=document.querySelector('#sp-cps input[data-cp="'+c+'"]');return cb&&cb.checked;});
-  try{const t=await aiGenerate("contrat",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,montant:$("sp-montant").value,contreparties:cps.length?cps:contrepartiesFor(pack),mecenat:clubMecenat});
+  const fdate=x=>x?new Date(x).toLocaleDateString('fr-FR',{day:'2-digit',month:'long',year:'numeric'}):"";
+  try{const t=await aiGenerate("contrat",{club:$("nom").value,sport:$("sport").value,lic:+$("lic").value,spec:+$("spec").value,res:+$("res").value,sponsor:p.name,montant:$("sp-montant").value,contreparties:cps.length?cps:contrepartiesFor(pack),mecenat:clubMecenat,debut:fdate($("sp-start")&&$("sp-start").value),fin:fdate($("sp-end")&&$("sp-end").value)});
     await sb.from("pipeline").update({contrat:t}).eq("id",id);const pp=pipeData.find(x=>x.id===id);if(pp)pp.contrat=t;
     renderContractBox(t,id,false);}
   catch(e){box.innerHTML='<div style="color:#a12;font-size:13px">IA indisponible : '+e.message+'</div>';}
@@ -1170,7 +1174,7 @@ async function loadSponsorMails(id){
 }
 function dlDoc(taId,name){const ta=document.getElementById(taId);const esc=ta.value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+esc+'</body></html>';const blob=new Blob(["﻿",html],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(name||"document")+".doc";document.body.appendChild(a);a.click();a.remove();}
 function renderContractBox(text,id,signed){document.getElementById("sp-contract").innerHTML=`<label style="margin:6px 0 4px;display:block">Contrat (modifiable — enregistré sur la fiche)</label><textarea id="ct-out" style="width:100%;min-height:200px;padding:10px 12px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13px;line-height:1.6">${(text||"").replace(/</g,"&lt;")}</textarea><div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;align-items:center"><button class="primary" onclick="saveContract(${id})"><i class="ti ti-device-floppy"></i> Enregistrer le contrat</button><button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button><span id="ct-status" style="color:var(--green);font-size:12px"></span></div><label class="cp" style="max-width:240px;margin-top:10px"><input type="checkbox" ${signed?"checked":""} onchange="setSigned(${id},this.checked)"><span>Contrat signé</span></label>`;}
-async function setSigned(id,val){const upd={contrat_signe:val,signe_at:(val?new Date().toISOString():null)};const {error}=await sb.from("pipeline").update(upd).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p){p.contrat_signe=val;p.signe_at=upd.signe_at;}if(error)alert("Erreur: "+error.message);else renderToday();}
+async function setSigned(id,val){const upd={contrat_signe:val,signe_at:(val?new Date().toISOString():null)};if(val)upd.statut="Signé";const {error}=await sb.from("pipeline").update(upd).eq("id",id);if(error){alert("Erreur: "+error.message);return;}const p=pipeData.find(x=>x.id===id);if(p){p.contrat_signe=val;p.signe_at=upd.signe_at;if(val)p.statut="Signé";}if(val&&$("sp-statut"))$("sp-statut").value="Signé";loadPipe();}
 async function saveContract(id){const ta=document.getElementById("ct-out");const {error}=await sb.from("pipeline").update({contrat:ta.value}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.contrat=ta.value;const st=document.getElementById("ct-status");if(st){if(error){st.style.color="#a12";st.textContent="Erreur : "+error.message;}else{st.style.color="var(--green)";st.textContent="Enregistré ✓";}}}
 function spaceUrl(tok){return location.origin+"/espace.html#"+tok;}
 function renderShare(id){const box=document.getElementById("sp-share");if(!box)return;const p=pipeData.find(x=>x.id===id);
