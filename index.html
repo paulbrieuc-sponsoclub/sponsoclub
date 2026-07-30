@@ -812,6 +812,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
   $("dlg-body").innerHTML=`
     <div class="sp-tabs">
       <button class="sp-tabbtn active" data-p="offre" onclick="spTab('offre')"><i class="ti ti-award"></i> Offre</button>
+      <button class="sp-tabbtn" data-p="contrat" onclick="spTab('contrat')"><i class="ti ti-file-text"></i> Contrat</button>
       <button class="sp-tabbtn" data-p="mail" onclick="spTab('mail')"><i class="ti ti-mail"></i> Mail</button>
       <button class="sp-tabbtn" data-p="paiement" onclick="spTab('paiement')"><i class="ti ti-cash"></i> Paiement</button>
       <button class="sp-tabbtn" data-p="page" onclick="spTab('page')"><i class="ti ti-share"></i> Page partenaire</button>
@@ -823,8 +824,6 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
         <div><label>Pack</label><select id="sp-pack" onchange="packChanged()">${(clubOffres||DEFAULT_OFFRES).map(o=>`<option ${pack===o.nom?"selected":""}>${o.nom}</option>`).join("")}</select></div>
         <div><label>Montant (€)</label><input id="sp-montant" type="number" value="${p.montant||""}"></div>
         <div><label>Prochaine action</label><input id="sp-action" value="${(p.next_action||'').replace(/"/g,'&quot;')}" placeholder="ex. relancer le 15/09"></div>
-        <div><label>Début du partenariat</label><input id="sp-start" type="date" value="${p.partner_start||''}"></div>
-        <div><label>Fin du partenariat</label><input id="sp-end" type="date" value="${p.partner_end||''}"></div>
       </div>
       <div style="background:var(--accentbg);color:var(--accenttx);border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:14px"><i class="ti ti-bulb"></i> <span id="sp-hint">${actionHint(p.statut)}</span></div>
       ${(p.phone||p.website)?`<div style="font-size:13px;color:var(--muted);margin-bottom:12px">${p.phone?`<a href="tel:${p.phone}" style="color:var(--accenttx);text-decoration:none;margin-right:14px"><i class="ti ti-phone"></i> ${p.phone}</a>`:""}${p.website?`<a href="${p.website}" target="_blank" style="color:var(--accenttx);text-decoration:none"><i class="ti ti-world"></i> site web</a>`:""}</div>`:""}
@@ -832,7 +831,16 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <div id="sp-cps" style="display:grid;grid-template-columns:1fr 1fr;gap:2px 18px;margin-bottom:14px"></div>
       <label>Notes</label>
       <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button><button onclick="genContract(${id},this)"><i class="ti ti-file-text"></i> Générer le contrat (IA)</button>${p.statut==='Signé'?`<button onclick="prepareBilan(${id})"><i class="ti ti-award"></i> Bilan &amp; renouvellement</button>`:""}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>${p.statut==='Signé'?`<button onclick="prepareBilan(${id})"><i class="ti ti-award"></i> Bilan &amp; renouvellement</button>`:""}</div>
+    </div>
+
+    <div class="sp-page" data-p="contrat">
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div><label>Début du partenariat</label><input id="sp-start" type="date" value="${p.partner_start||''}"></div>
+        <div><label>Fin du partenariat</label><input id="sp-end" type="date" value="${p.partner_end||''}"></div>
+      </div>
+      <p class="muted" style="font-size:13px;margin-bottom:12px">Génère un contrat de parrainage pré-rempli (montant, contreparties, durée) à partir de l'offre. Modifiable, téléchargeable en Word, et marqué comme signé une fois retourné.</p>
+      <button onclick="genContract(${id},this)"><i class="ti ti-sparkles"></i> Générer le contrat (IA)</button>
       <div id="sp-contract" style="margin-top:14px"></div>
     </div>
 
