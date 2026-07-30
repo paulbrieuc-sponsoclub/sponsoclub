@@ -127,12 +127,21 @@ function renderTable(){
   const strKeys=["nom","email","inscrit","last"];
   const cols=[["email","Email",0],["nom","Club",0],["inscrit","Inscrit",1],["dossiers","Dossiers",1],["signes","Signés",1],["sponsoring","Sponsoring",1],["last","Activité",1]];
   const clubs=[...DATA.clubs].sort((a,b)=>{let x=a[sortKey],y=b[sortKey];if(strKeys.indexOf(sortKey)>=0){x=(x||"");y=(y||"");return sortDir*(x<y?-1:x>y?1:0);}return sortDir*((x||0)-(y||0));});
-  const th=cols.map(c=>`<th class="${c[2]?'num':''}" onclick="setSort('${c[0]}')">${c[1]}${sortKey===c[0]?(sortDir<0?" ▾":" ▴"):""}</th>`).join("");
-  const rows=clubs.map(c=>`<tr><td>${c.email||'—'}</td><td>${c.nom||'—'}</td><td class="num">${fmtDate(c.inscrit)}</td><td class="num">${c.dossiers}</td><td class="num">${c.signes}</td><td class="num">${eur(c.sponsoring)}</td><td class="num">${fmtDate(c.last)}</td></tr>`).join("");
-  document.getElementById("clubs").innerHTML="<thead><tr>"+th+"</tr></thead><tbody>"+(rows||'<tr><td colspan="7" style="color:var(--faint)">Aucun compte.</td></tr>')+"</tbody>";
+  const th=cols.map(c=>`<th class="${c[2]?'num':''}" onclick="setSort('${c[0]}')">${c[1]}${sortKey===c[0]?(sortDir<0?" ▾":" ▴"):""}</th>`).join("")+'<th>Accès</th>';
+  const rows=clubs.map(c=>`<tr><td>${c.email||'—'}</td><td>${c.nom||'—'}</td><td class="num">${fmtDate(c.inscrit)}</td><td class="num">${c.dossiers}</td><td class="num">${c.signes}</td><td class="num">${eur(c.sponsoring)}</td><td class="num">${fmtDate(c.last)}</td><td>${c.email?`<button class="ghost" style="padding:6px 11px;font-size:12.5px" onclick="impersonate('${(c.email||'').replace(/'/g,"\\'")}')"><i class="ti ti-login-2"></i> Se connecter</button>`:'—'}</td></tr>`).join("");
+  document.getElementById("clubs").innerHTML="<thead><tr>"+th+"</tr></thead><tbody>"+(rows||'<tr><td colspan="8" style="color:var(--faint)">Aucun compte.</td></tr>')+"</tbody>";
   document.getElementById("clubcount").textContent=clubs.length+" comptes";
 }
 function setSort(k){if(sortKey===k)sortDir*=-1;else{sortKey=k;sortDir=(k==="nom"||k==="email")?1:-1;}renderTable();}
+async function impersonate(email){
+  if(!confirm("Se connecter au compte de "+email+" ?\n\nVous verrez et pourrez modifier ses données. Cela remplacera votre session dans l'application (vous devrez vous reconnecter à votre compte ensuite)."))return;
+  try{
+    const r=await fetch("/api/admin?token="+encodeURIComponent(TOKEN)+"&as="+encodeURIComponent(email));
+    const j=await r.json();
+    if(!r.ok||j.error||!j.link)throw new Error(j.error||"Lien indisponible");
+    window.open(j.link,"_blank");
+  }catch(e){alert("Erreur : "+e.message);}
+}
 </script>
 </body>
 </html>
