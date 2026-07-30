@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
     params.set('cancel_url', 'https://sponsoclub.fr/?sub=cancel');
     if (clubId) params.set('client_reference_id', clubId);
     if (email) params.set('customer_email', email);
-    params.set('subscription_data[trial_period_days]', '30');
+    params.set('subscription_data[trial_period_days]', '15');
     params.set('allow_promotion_codes', 'true');
     params.set('line_items[0][quantity]', '1');
     params.set('line_items[0][price_data][currency]', 'eur');
