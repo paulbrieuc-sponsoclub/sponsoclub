@@ -154,6 +154,10 @@
       <div id="today"><div class="empty">Chargement…</div></div>
     </div>
     <div class="card tabpage tab-profil">
+      <h2 style="margin:0 0 4px"><i class="ti ti-crown"></i> Abonnement Sponsoclub</h2>
+      <div id="sub-box"><div class="muted" style="font-size:13px">Chargement…</div></div>
+    </div>
+    <div class="card tabpage tab-profil">
       <div id="profile-summary" style="display:none">
         <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
           <img id="sum-logo" alt="" style="width:48px;height:48px;border-radius:11px;object-fit:contain;background:#fff;padding:3px;border:1px solid var(--border);display:none">
@@ -308,7 +312,7 @@ const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 
 const $=id=>document.getElementById(id);
 let sb=null, user=null, prospects=[], signupMode=false, curPage=1;
-let clubId=null, myRole="owner", clubMembers=[], clubDocs=[], actionsData=[], relancesData=[], notifsIn=[];
+let clubId=null, myRole="owner", clubMembers=[], clubDocs=[], actionsData=[], relancesData=[], notifsIn=[], clubSub={};
 const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
 let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
@@ -354,7 +358,8 @@ async function showApp(){
   $("auth").style.display="none"; $("app").style.display="block";
   $("who").textContent=user.email;
   await joinClub();
-  await loadProfile(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); loadNotifs(); if($("f-dist"))updateRayon($("f-dist").value); switchTab("today");
+  await loadProfile(); renderSub(); await loadPipe(); loadActions(); loadMembers(); loadDocs(); loadRelances(); loadNotifs(); if($("f-dist"))updateRayon($("f-dist").value); switchTab("today");
+  if(new URLSearchParams(location.search).get("sub")==="success"){setTimeout(()=>loadProfile().then(renderSub),2500);alert("Merci ! Votre abonnement est en cours d'activation. Le statut se met à jour dans quelques secondes.");history.replaceState({},"",location.pathname);}
 }
 async function joinClub(){
   clubId=user.id; // repli par défaut
@@ -377,6 +382,7 @@ async function loadProfile(){
     if($("p-entourage"))$("p-entourage").value=data.viz_entourage||2;
     clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
     if($("p-relance"))$("p-relance").checked=data.relance_auto!==false;
+    clubSub={status:data.subscription_status||null,plan:data.subscription_plan||null,until:data.subscription_until||null};
     $("col-primary").value=clubPrimary; $("col-secondary").value=clubSecondary;
     if(clubLogo){$("logo-preview").src=clubLogo;$("logo-preview").style.display="block";$("logo-ph").style.display="none";}
     applyTheme(); updateTopLogo(); updateTopName(); showOffresView();
@@ -778,6 +784,24 @@ async function sendBilan(id,btn){
     const p=pipeData.find(x=>x.id===id);if(p)p.renewal_at=new Date().toISOString();
     $("dlg").close();loadPipe();
   }catch(e){alert("Envoi impossible : "+e.message);btn.disabled=false;btn.innerHTML=bo;}
+}
+function renderSub(){
+  const box=$("sub-box");if(!box)return;const s=clubSub||{};const st=s.status;
+  const until=s.until?new Date(s.until).toLocaleDateString('fr-FR'):"";
+  const btns=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px"><button class="primary" onclick="subscribe('month',this)"><i class="ti ti-credit-card"></i> 39,99 €/mois</button><button class="primary" onclick="subscribe('year',this)" style="background:var(--green);border-color:var(--green)"><i class="ti ti-credit-card"></i> 399 €/an · 2 mois offerts</button></div><p class="muted" style="font-size:12px;margin-top:8px">1 mois d'essai gratuit · sans engagement, résiliable à tout moment.</p>`;
+  if(st==='active'){box.innerHTML=`<p style="margin:6px 0 2px"><span class="pill green"><i class="ti ti-circle-check"></i> Abonnement actif</span>${s.plan?' · formule '+s.plan:''}</p><p class="muted" style="font-size:13px">${until?('Prochaine échéance le '+until):''}</p>`;}
+  else if(st==='trialing'){box.innerHTML=`<p style="margin:6px 0 2px"><span class="pill amber"><i class="ti ti-clock"></i> Essai gratuit en cours</span></p><p class="muted" style="font-size:13px">${until?('Votre abonnement démarrera le '+until+'.'):''}</p>`+btns;}
+  else if(st==='past_due'){box.innerHTML=`<p style="margin:6px 0 2px"><span class="pill amber">Paiement en attente</span></p><p class="muted" style="font-size:13px">Un souci est survenu sur le règlement de votre abonnement.</p>`+btns;}
+  else{box.innerHTML=`<p class="muted" style="font-size:13.5px;margin:6px 0 2px">Activez Sponsoclub pour votre club — détection d'entreprises, dossiers &amp; emails IA, relances, espace sponsor…</p>`+btns;}
+}
+async function subscribe(plan,btn){
+  const bo=btn?btn.innerHTML:"";if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Redirection…';}
+  try{
+    const {data}=await sb.auth.getSession();const tok=data&&data.session&&data.session.access_token;
+    const r=await fetch("/api/checkout",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({plan,clubId,token:tok})});
+    const j=await r.json();if(!r.ok||j.error||!j.url)throw new Error(j.error||"Erreur");
+    location.href=j.url;
+  }catch(e){alert("Impossible d'ouvrir le paiement : "+e.message);if(btn){btn.disabled=false;btn.innerHTML=bo;}}
 }
 function renderKpis(){
   const signes=pipeData.filter(p=>p.statut==="Signé");
