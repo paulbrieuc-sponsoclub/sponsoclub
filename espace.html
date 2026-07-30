@@ -25,6 +25,8 @@
   /* CONTENT */
   .wrap{max-width:640px;margin:-42px auto 46px;padding:0 18px;position:relative;z-index:2}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px 24px;margin-bottom:16px;box-shadow:0 8px 30px rgba(16,24,40,.06)}
+  .section-h{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin:26px 6px 12px}
+  .wrap>.section-h:first-child{margin-top:0}
   .card h2{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:18px;display:flex;align-items:center;gap:9px;font-weight:700}
   .card h2 .chip{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;background:color-mix(in srgb,var(--accent) 12%,#fff);color:var(--accent)}
   /* PACK */
@@ -144,6 +146,7 @@ function render(d){
     <div class="sub">Merci à <b>${esc(s.name)}</b> pour son soutien${c.sport?` au ${esc(c.sport.toLowerCase())}`:""}.</div>
   </div>
   <div class="wrap">
+    <div class="section-h">Votre sponsoring</div>
     <div class="card">
       <h2><span class="chip"><i class="ti ti-award"></i></span> Votre partenariat</h2>
       <div class="packrow">
@@ -173,21 +176,8 @@ function render(d){
       <div class="note">Votre marque présente toute la saison (~${moisExpo} mois) : panneau au stade, maillots et réseaux. Une audience locale et fidèle.</div>
     </div>
 
-    ${(c.mecenat&&s.montant)?`
-    <div class="card">
-      <h2><span class="chip"><i class="ti ti-receipt-tax"></i></span> Votre reçu fiscal (mécénat)</h2>
-      <p style="color:var(--muted);font-size:13.5px;margin-bottom:4px">Complétez vos informations légales pour générer votre reçu fiscal (reproduction du Cerfa n°16216), à conserver pour votre déclaration et bénéficier de la réduction d'impôt de 60 %.</p>
-      <div class="frm">
-        <label>Raison sociale de l'entreprise</label><input id="r-nom" value="${esc(s.name)}">
-        <label>Adresse complète</label><input id="r-adr" placeholder="N°, rue, code postal, ville">
-        <label>N° SIREN</label><input id="r-siren" placeholder="123 456 789">
-        <label>Date du versement du don</label><input id="r-date" type="date">
-      </div>
-      <button class="dlbtn" onclick="downloadRecu()"><i class="ti ti-download"></i> Télécharger le reçu fiscal</button>
-      <div class="warn"><i class="ti ti-info-circle"></i><div>Reçu valable pour un <b>don de mécénat</b> (contreparties symboliques ≤ 25 % du montant), à délivrer une fois le don encaissé. Si vous bénéficiez de contreparties publicitaires importantes (logo maillot, panneau…), il s'agit de <b>parrainage</b> : demandez plutôt une facture au club.</div></div>
-    </div>`:""}
-
     ${(d.posts&&d.posts.length)?`
+    <div class="section-h">Actualités du club</div>
     <div class="card">
       <h2><span class="chip"><i class="ti ti-brand-instagram"></i></span> ${c.nom} parle de vous</h2>
       <div class="posts">
@@ -203,6 +193,27 @@ function render(d){
           return `<div class="post">${body||'<div class="post-b post-cap">Publication</div>'}</div>`;
         }).join("")}
       </div>
+    </div>`:""}
+
+    ${((c.mecenat&&s.montant)||s.contrat)?`<div class="section-h">Reçu fiscal & documents</div>`:""}
+    ${(c.mecenat&&s.montant)?`
+    <div class="card">
+      <h2><span class="chip"><i class="ti ti-receipt-tax"></i></span> Votre reçu fiscal (mécénat)</h2>
+      <p style="color:var(--muted);font-size:13.5px;margin-bottom:4px">Complétez vos informations légales pour générer votre reçu fiscal (reproduction du Cerfa n°16216), à conserver pour votre déclaration et bénéficier de la réduction d'impôt de 60 %.</p>
+      <div class="frm">
+        <label>Raison sociale de l'entreprise</label><input id="r-nom" value="${esc(s.name)}">
+        <label>Adresse complète</label><input id="r-adr" placeholder="N°, rue, code postal, ville">
+        <label>N° SIREN</label><input id="r-siren" placeholder="123 456 789">
+        <label>Date du versement du don</label><input id="r-date" type="date">
+      </div>
+      <button class="dlbtn" onclick="downloadRecu()"><i class="ti ti-download"></i> Télécharger le reçu fiscal</button>
+      <div class="warn"><i class="ti ti-info-circle"></i><div>Reçu valable pour un <b>don de mécénat</b> (contreparties symboliques ≤ 25 % du montant), à délivrer une fois le don encaissé. Si vous bénéficiez de contreparties publicitaires importantes (logo maillot, panneau…), il s'agit de <b>parrainage</b> : demandez plutôt une facture au club.</div></div>
+    </div>`:""}
+    ${s.contrat?`
+    <div class="card">
+      <h2><span class="chip"><i class="ti ti-file-text"></i></span> Votre contrat</h2>
+      <p style="color:var(--muted);font-size:13.5px;margin-bottom:12px">Votre contrat de partenariat, signé avec le club.</p>
+      <button class="dlbtn" style="background:var(--surface);color:var(--text);border:1px solid #d9dce1" onclick="downloadContrat()"><i class="ti ti-download"></i> Télécharger le contrat signé</button>
     </div>`:""}
 
     <div class="foot">Espace généré par <a href="https://sponsoclub.fr" target="_blank">Sponsoclub</a> pour ${esc(c.nom)}.</div>
@@ -307,6 +318,13 @@ function downloadRecu(){
   if(!w){alert("Autorisez les fenêtres pop-up pour télécharger le reçu.");return;}
   w.document.write(html);w.document.close();w.focus();
   setTimeout(()=>{try{w.print();}catch(e){}},450);
+}
+function downloadContrat(){
+  const s=SPONSOR,c=CLUB;const txt=s&&s.contrat;if(!txt){alert("Contrat indisponible.");return;}
+  const e=x=>(x||'').replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");
+  const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+e(txt)+'</body></html>';
+  const blob=new Blob(["﻿",html],{type:"application/msword"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="contrat-"+(((c&&c.nom)||"sponsoclub").replace(/[^a-z0-9]+/gi,"-").toLowerCase())+".doc";document.body.appendChild(a);a.click();a.remove();
 }
 load();
 window.addEventListener("hashchange",load);
