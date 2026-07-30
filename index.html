@@ -984,7 +984,10 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <div style="background:var(--accentbg);border-radius:12px;padding:14px 16px;margin-bottom:16px">
         <div style="font-weight:600;font-size:14px;margin-bottom:4px"><i class="ti ti-credit-card"></i> Paiement en ligne (Stripe)</div>
         <p class="muted" style="font-size:13px;margin-bottom:10px">Génère un lien de paiement du montant du sponsoring à envoyer au partenaire. Quand il paie, le statut passe <b>automatiquement</b> à « Réglé ».</p>
-        <button class="primary" onclick="genPayLink(${id},this)"><i class="ti ti-link"></i> Générer un lien de paiement</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="primary" onclick="genPayLink(${id},this)"><i class="ti ti-link"></i> Générer un lien de paiement</button>
+          <button onclick="emailPayLink(${id})"><i class="ti ti-mail"></i> Envoyer par email</button>
+        </div>
       </div>
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
         <div style="flex:1;min-width:220px"><label>Lien de paiement (Stripe, HelloAsso, virement…)</label><input id="sp-paylink" value="${(p.payment_link||'').replace(/"/g,'&quot;')}" placeholder="https://..."></div>
@@ -1011,6 +1014,16 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
   renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);loadPosts(id);spTab(tab||'offre');
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
+}
+function emailPayLink(id){
+  const p=pipeData.find(x=>x.id===id);if(!p)return;
+  const link=($("sp-paylink")&&$("sp-paylink").value)||p.payment_link;
+  if(!link){alert("Génère d'abord le lien de paiement.");return;}
+  const nom=$("nom").value||"le club";
+  if($("sp-email")&&!$("sp-email").value)$("sp-email").value=p.email_to||"";
+  if($("sp-subject"))$("sp-subject").value="Votre partenariat avec "+nom+" — lien de paiement";
+  if($("sp-body"))$("sp-body").value="Bonjour,\n\nMerci pour votre soutien au "+nom+" ! Voici le lien pour régler votre partenariat en ligne, en toute sécurité :\n"+link+"\n\nUne fois le paiement effectué, tout est enregistré automatiquement de notre côté.\n\nBien à vous,\n"+nom;
+  spTab('mail');
 }
 async function genPayLink(id,btn){
   const p=pipeData.find(x=>x.id===id);
