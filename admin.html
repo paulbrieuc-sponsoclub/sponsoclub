@@ -44,6 +44,12 @@
   tr:hover td{background:var(--surface2)}
   .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
   h2.sec{font-size:18px}
+  #prospect td{padding:4px 6px;vertical-align:middle;border-bottom:1px solid var(--border)}
+  #prospect input,#prospect select{border:1px solid transparent;background:transparent;width:100%;font-size:13px;padding:5px 6px;border-radius:6px;font-family:inherit}
+  #prospect input:hover,#prospect select:hover{border-color:var(--border)}
+  #prospect input:focus,#prospect select:focus{border-color:var(--accent);outline:none;background:#fff}
+  #prospect .del{width:auto;border:1px solid #e9c3c3;background:#fff;color:#e24b4a;padding:5px 9px;font-size:12px}
+  .pill{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11.5px;font-weight:600}
 </style>
 </head>
 <body>
@@ -71,6 +77,18 @@
     <div style="overflow-x:auto"><table id="clubs"></table></div>
   </div>
   <p style="font-size:12px;color:var(--faint);margin-top:16px">MRR projeté = clubs × prix d'abonnement supposé (facturation non branchée). Sponsoring = montant réel signé, cumulé sur tous les clubs.</p>
+
+  <div class="panel" style="margin-top:22px">
+    <div class="head">
+      <h3 style="margin:0">Suivi de prospection</h3>
+      <div style="display:flex;gap:8px">
+        <button class="ghost" id="btn-seed" onclick="seedProspection()"><i class="ti ti-download"></i> Importer ma liste</button>
+        <button onclick="addProspect()"><i class="ti ti-plus"></i> Ajouter un club</button>
+      </div>
+    </div>
+    <div style="overflow-x:auto"><table id="prospect"></table></div>
+    <p id="prospect-empty" style="font-size:12.5px;color:var(--faint);margin-top:10px;display:none">Aucun club suivi pour le moment. Cliquez sur « Importer ma liste » ou « Ajouter un club ».</p>
+  </div>
 </div>
 
 <script>
@@ -86,6 +104,7 @@ async function load(){
     document.getElementById("login").style.display="none";
     document.getElementById("dash").style.display="block";
     renderAll();
+    loadProspection();
   }catch(e){m.textContent=e.message;m.style.display="block";document.getElementById("login").style.display="block";document.getElementById("dash").style.display="none";}
 }
 function eur(n){return (Math.round(n||0)).toLocaleString("fr-FR")+" €";}
@@ -141,6 +160,81 @@ async function impersonate(email){
     if(!r.ok||j.error||!j.link)throw new Error(j.error||"Lien indisponible");
     window.open(j.link,"_blank");
   }catch(e){alert("Erreur : "+e.message);}
+}
+
+/* ---------- Suivi de prospection ---------- */
+let PROSPECT=[];
+const PSTATUTS=["Envoyé","Vu","Répondu","Relancé","RDV","Signé","Pas intéressé"];
+const PREPONSE=["En attente","Intéressé","RDV pris","Pas intéressé"];
+const PCOL={"Envoyé":"#eceefb|#3b4cd8","Vu":"#eef0f2|#6b7280","Répondu":"#e2f4ee|#159169","Relancé":"#fbf0dd|#b5730f","RDV":"#fbf0dd|#b5730f","Signé":"#e2f4ee|#159169","Pas intéressé":"#fbe6e6|#c23b3b"};
+function pesc(v){return (v==null?"":String(v)).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
+const SEED=[
+ ["Rugby Club Drouais","rcdrouais","Hors IdF (Dreux)"],["URC 78","urc78","Régionale 1 IdF"],
+ ["Union des Bords de Marne","ubmrugbys94","Régionale 1 IdF"],["RC Seine & Oise Triel","Rugby Club Seine et Oise Triel","Régionale 1 IdF"],
+ ["Parisis Rugby Club","parisisrugbyclubofficiel","Régionale 1 IdF"],["RO Yerrois","r.o.y.91","Régionale 2 IdF (P3)"],
+ ["ALJ Rugby Limay","ALJ Rugby Limay","À confirmer"],["Rugby Conflans-Herblay","rugbyconflansherblay","Régionale 2 IdF (P2)"],
+ ["RC Vélizy-Villacoublay","rcvv_officiel","Régionale 2 IdF (P2)"],["RC Neuilly-sur-Marne","rugbyclubneuillysurmarne","Régionale 2 IdF (P1)"],
+ ["RC Montreuillois","rugbyclubmontreuillois","Régionale 2 IdF (P1)"],["USO Athis-Mons","ATHIS MONS RUGBY","Régionale 2 IdF (P1)"],
+ ["RC Garches-Vaucresson","rcgarchesvaucresson","Régionale 1 IdF"],["RC Chilly-Mazarin","rc_chilly_mazarin","Régionale 2 IdF (P1)"],
+ ["Saint-Denis Rugby 93","saint_denisrugby93","Régionale 2 IdF (P1)"],["RC Plateau Briard","rcpb_plateau_briard","Régionale 2 IdF (P1)"],
+ ["RC Paris Neuilly-sur-Seine","rugbyclubparisneuilly","Régionale 2 IdF (P1)"],["US Alfortville Rugby","US Alfortville Rugby","Régionale 2 IdF (P1)"],
+ ["RC Dourdan","dourdan_rugby","Régionale 2 IdF (P1)"]
+];
+async function pfetch(opts){
+  const r=await fetch("/api/admin?token="+encodeURIComponent(TOKEN)+"&prospection=1"+(opts.id?("&id="+encodeURIComponent(opts.id)):""),
+    {method:opts.method||"GET",headers:opts.body?{"content-type":"application/json"}:undefined,body:opts.body?JSON.stringify(opts.body):undefined});
+  const j=await r.json();if(!r.ok||j.error)throw new Error(j.error||("HTTP "+r.status));return j;
+}
+async function loadProspection(){
+  try{const j=await pfetch({});PROSPECT=j.rows||[];renderProspect();}
+  catch(e){document.getElementById("prospect").innerHTML='<tbody><tr><td style="color:#c23b3b;font-size:13px;padding:10px">Table indisponible — as-tu créé la table « prospection » ? ('+e.message+')</td></tr></tbody>';}
+}
+function renderProspect(){
+  const empty=document.getElementById("prospect-empty");
+  empty.style.display=PROSPECT.length?"none":"block";
+  const cols=["Club","Instagram","Division","Statut","Contact","Réponse","Relance","Notes",""];
+  const th="<thead><tr>"+cols.map(c=>`<th>${c}</th>`).join("")+"</tr></thead>";
+  const rows=PROSPECT.map(p=>{
+    const sel=(field,opts,val)=>`<select onchange="saveProspect(${p.id},'${field}',this.value)">`+opts.map(o=>`<option ${o===val?"selected":""}>${o}</option>`).join("")+`</select>`;
+    const txt=(field,val)=>`<input value="${pesc(val)}" onchange="saveProspect(${p.id},'${field}',this.value)">`;
+    const dat=(field,val)=>`<input type="date" value="${pesc((val||'').slice(0,10))}" onchange="saveProspect(${p.id},'${field}',this.value)">`;
+    return `<tr>
+      <td style="min-width:150px">${txt("club",p.club)}</td>
+      <td style="min-width:150px">${txt("handle",p.handle)}</td>
+      <td style="min-width:130px">${txt("division",p.division)}</td>
+      <td style="min-width:120px">${sel("statut",PSTATUTS,p.statut||"Envoyé")}</td>
+      <td style="min-width:130px">${dat("contact_date",p.contact_date)}</td>
+      <td style="min-width:120px">${sel("reponse",PREPONSE,p.reponse||"En attente")}</td>
+      <td style="min-width:130px">${dat("relance_date",p.relance_date)}</td>
+      <td style="min-width:200px">${txt("notes",p.notes)}</td>
+      <td><button class="del" onclick="delProspect(${p.id})"><i class="ti ti-trash"></i></button></td>
+    </tr>`;
+  }).join("");
+  document.getElementById("prospect").innerHTML=th+"<tbody>"+rows+"</tbody>";
+}
+async function saveProspect(id,field,value){
+  try{const j=await pfetch({method:"PATCH",id,body:{[field]:value}});
+    const idx=PROSPECT.findIndex(x=>x.id===id);if(idx>=0&&j.rows&&j.rows[0])PROSPECT[idx]=j.rows[0];
+  }catch(e){alert("Sauvegarde impossible : "+e.message);}
+}
+async function addProspect(){
+  try{const j=await pfetch({method:"POST",body:{club:"Nouveau club",statut:"Envoyé",reponse:"En attente",contact_date:new Date().toISOString().slice(0,10)}});
+    if(j.rows&&j.rows[0])PROSPECT.push(j.rows[0]);renderProspect();
+  }catch(e){alert("Ajout impossible : "+e.message);}
+}
+async function delProspect(id){
+  if(!confirm("Supprimer cette ligne ?"))return;
+  try{await pfetch({method:"DELETE",id});PROSPECT=PROSPECT.filter(x=>x.id!==id);renderProspect();}
+  catch(e){alert("Suppression impossible : "+e.message);}
+}
+async function seedProspection(){
+  if(PROSPECT.length&&!confirm("Ta liste contient déjà "+PROSPECT.length+" clubs. Ajouter quand même les 19 clubs de la liste initiale ?"))return;
+  const today=new Date().toISOString().slice(0,10);
+  const rows=SEED.map(s=>({club:s[0],handle:s[1],division:s[2],statut:"Envoyé",reponse:"En attente",contact_date:today}));
+  const btn=document.getElementById("btn-seed");btn.disabled=true;
+  try{const j=await pfetch({method:"POST",body:{rows}});(j.rows||[]).forEach(r=>PROSPECT.push(r));renderProspect();}
+  catch(e){alert("Import impossible : "+e.message);}
+  btn.disabled=false;
 }
 </script>
 </body>
