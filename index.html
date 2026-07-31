@@ -343,12 +343,12 @@ const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
 let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
 const DEFAULT_OFFRES=[
-  {nom:"Bronze",prix:300,contreparties:["Logo sur le site du club","4 posts sur les réseaux / an","Citation dans la newsletter","Mention au micro les jours de match","Logo sur l'affiche de la saison"]},
-  {nom:"Argent",prix:800,contreparties:["Tout le pack Bronze","Panneau publicitaire au stade","Logo sur le short","12 posts sur les réseaux","Invitation VIP à un match"]},
-  {nom:"Or",prix:1500,contreparties:["Tout le pack Argent","Logo sur le maillot officiel","Un match parrainé à votre nom","Bâche géante au stade","Mise en avant sur tous nos supports"]},
-  {nom:"Mécénat (don)",prix:500,desc:"Un don pour soutenir le club, sans contrepartie publicitaire. En tant qu'association d'intérêt général, votre don ouvre droit à une réduction d'impôt de 60 % (reçu fiscal fourni). Idéal pour les partenaires qui soutiennent le club avant tout.",contreparties:["Reçu fiscal — 60 % de réduction d'impôt","Nom cité parmi les mécènes du club","Remerciement sur nos réseaux"]}
+  {nom:"Bronze",prix:300,desc:"La formule pour démarrer : une visibilité locale simple et efficace, sans gros budget. Idéale pour un commerce de proximité qui veut soutenir le club.",contreparties:["Logo sur le site du club","4 posts sur les réseaux / an","Citation dans la newsletter","Mention au micro les jours de match","Logo sur l'affiche de la saison"]},
+  {nom:"Argent",prix:800,desc:"Le bon équilibre visibilité / budget : présence au stade, sur les tenues et communication renforcée sur nos réseaux. Pour vraiment se faire remarquer localement.",contreparties:["Tout le pack Bronze","Panneau publicitaire au stade","Logo sur le short","12 posts sur les réseaux","Invitation VIP à un match"]},
+  {nom:"Or",prix:1500,desc:"Le partenariat premium : visibilité maximale sur tous nos supports, logo sur le maillot et un match parrainé à votre nom. Pour devenir un partenaire majeur du club.",contreparties:["Tout le pack Argent","Logo sur le maillot officiel","Un match parrainé à votre nom","Bâche géante au stade","Mise en avant sur tous nos supports"]},
+  {nom:"Mécénat (don)",prix:500,desc:"Un don pour soutenir le club, sans contrepartie publicitaire. Ouvre droit à 60 % de réduction d'impôt (reçu fiscal fourni). Pour les partenaires qui soutiennent avant tout.",contreparties:["Reçu fiscal — 60 % de réduction d'impôt","Nom cité parmi les mécènes du club","Remerciement sur nos réseaux"]}
 ];
-const MECENAT_OFFRE={nom:"Mécénat (don)",prix:500,desc:"Un don pour soutenir le club, sans contrepartie publicitaire. En tant qu'association d'intérêt général, votre don ouvre droit à une réduction d'impôt de 60 % (reçu fiscal fourni). Idéal pour les partenaires qui soutiennent le club avant tout.",contreparties:["Reçu fiscal — 60 % de réduction d'impôt","Nom cité parmi les mécènes du club","Remerciement sur nos réseaux"]};
+const MECENAT_OFFRE={nom:"Mécénat (don)",prix:500,desc:"Un don pour soutenir le club, sans contrepartie publicitaire. Ouvre droit à 60 % de réduction d'impôt (reçu fiscal fourni). Pour les partenaires qui soutiennent avant tout.",contreparties:["Reçu fiscal — 60 % de réduction d'impôt","Nom cité parmi les mécènes du club","Remerciement sur nos réseaux"]};
 function offreByName(nom){return (clubOffres||DEFAULT_OFFRES).find(x=>x.nom===nom);}
 
 if(SUPABASE_ANON_KEY==="COLLE_ICI_TA_CLE_ANON"){
