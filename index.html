@@ -831,17 +831,14 @@ const SUPER_ADMINS=["paulbrieuc@gmail.com"];
 function isSuperAdmin(){return !!(user&&SUPER_ADMINS.includes((user.email||"").toLowerCase()));}
 function isPro(){return isSuperAdmin()||!!(clubSub&&clubSub.status==='active');}
 function applyPlanLimits(){
-  const max=isPro()?PRO_RADIUS_MAX:TRIAL_RADIUS_MAX;
+  const max=PRO_RADIUS_MAX;
   const sl=$("f-dist");
   if(sl){sl.max=max;if(+sl.value>max)sl.value=max;updateRayon(sl.value);}
   if($("rayon-max-lbl"))$("rayon-max-lbl").textContent=max+" km";
   const hint=$("rayon-hint");
-  if(hint)hint.innerHTML=isPro()?"":'<i class="ti ti-lock"></i> Essai limité à '+TRIAL_RADIUS_MAX+' km — <a href="#" onclick="switchTab(\'profil\');return false" style="color:var(--accenttx)">abonnez-vous</a> pour aller jusqu\'à '+PRO_RADIUS_MAX+' km.';
+  if(hint)hint.innerHTML="";
 }
 async function overEmailQuota(){
-  if(isPro())return false;
-  const {count}=await sb.from("emails").select("id",{count:"exact",head:true}).eq("direction","out");
-  if((count||0)>=TRIAL_EMAIL_MAX){alert("Limite de l'essai atteinte : "+TRIAL_EMAIL_MAX+" emails envoyés.\\n\\nPassez à l'abonnement (onglet Profil du club) pour envoyer sans limite.");return true;}
   return false;
 }
 function renderSub(){
@@ -869,7 +866,7 @@ function renderSub(){
       </div>
     </div>
     <p class="muted" style="font-size:12px;margin-top:14px;text-align:center"><i class="ti ti-lock"></i> Paiement sécurisé via Stripe · 15 jours d'essai gratuit · sans engagement</p>
-    <p class="muted" style="font-size:11.5px;margin-top:4px;text-align:center">Essai : rayon de recherche jusqu'à ${TRIAL_RADIUS_MAX} km, ${TRIAL_EMAIL_MAX} emails inclus. Illimité une fois abonné.</p>`;
+    <p class="muted" style="font-size:11.5px;margin-top:4px;text-align:center">Toutes les fonctionnalités sont incluses pendant l'essai.</p>`;
   const cancelRow=s.cancel
     ?`<div style="margin-top:12px;font-size:13px;color:var(--amber)"><i class="ti ti-alert-circle"></i> Résiliation programmée${until?(' — accès jusqu\'au '+until):''}. <a href="#" onclick="cancelSub('resume');return false" style="color:var(--accenttx);font-weight:600">Réactiver</a></div>`
     :`<div style="margin-top:12px"><a href="#" onclick="cancelSub('cancel');return false" style="color:var(--muted);font-size:12.5px">Résilier mon abonnement</a></div>`;
