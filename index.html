@@ -59,11 +59,17 @@
   .tabbtn{background:transparent;border:none;border-bottom:2px solid transparent;color:var(--muted);padding:11px 16px;font-size:14px;cursor:pointer;display:inline-flex;gap:7px;align-items:center;border-radius:0}
   .tabbtn:hover{background:transparent;color:var(--text)}
   .tabbtn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:500}
-  .offre-view{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(16,24,40,.05)}
-  .offre-view .onom{font-size:13px;color:var(--muted)}
-  .offre-view .price{font-size:24px;font-weight:600;margin:2px 0 12px;color:var(--accent)}
-  .offre-view .cp{display:flex;gap:8px;font-size:13.5px;margin-bottom:7px;color:var(--text)}
-  .offre-view .cp i{color:var(--green);font-size:16px;flex-shrink:0}
+  .offre-view{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:22px 20px;box-shadow:0 4px 16px rgba(16,24,40,.05);transition:transform .15s,box-shadow .15s;display:flex;flex-direction:column}
+  .offre-view:hover{box-shadow:0 12px 28px rgba(16,24,40,.10);transform:translateY(-3px)}
+  .offre-view.mec{border:1.5px solid color-mix(in srgb,var(--accent) 35%,#fff);background:linear-gradient(165deg,var(--accentbg),var(--surface) 62%)}
+  .offre-view .onom{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .offre-view .price{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:3px 0 0;color:var(--text)}
+  .offre-view .price span{font-size:14px;font-weight:500;color:var(--faint)}
+  .offre-view .odesc{font-size:12.5px;color:var(--muted);line-height:1.5;margin:12px 0 0}
+  .offre-view .ofeats{margin-top:16px;border-top:1px solid var(--border);padding-top:14px;display:flex;flex-direction:column;gap:1px}
+  .offre-view .cp{display:flex;gap:9px;align-items:flex-start;font-size:13.5px;padding:6px 0;border:none;border-radius:0;background:none;color:var(--text);cursor:default}
+  .offre-view .cp:hover{background:none}
+  .offre-view .cp i{color:var(--green);font-size:17px;flex-shrink:0;margin-top:1px}
   dialog{border:none;border-radius:16px;padding:0;width:min(720px,94vw);max-height:88vh;overflow:hidden;margin:auto;box-shadow:0 24px 70px rgba(0,0,0,.35)}
   dialog::backdrop{background:rgba(0,0,0,.5)}
   .dlg-h{display:flex;align-items:center;justify-content:space-between;padding:16px 22px;border-bottom:1px solid var(--border)}
@@ -928,7 +934,10 @@ function removeOffre(i){clubOffres.splice(i,1);renderOffresEditor();}
 function addCp(i){clubOffres[i].contreparties.push("");renderOffresEditor();}
 function removeCp(i,j){clubOffres[i].contreparties.splice(j,1);renderOffresEditor();}
 async function saveOffres(btn){if(!user)return;btn.disabled=true;const {error}=await sb.from("profiles").upsert({id:clubId||user.id,offres:clubOffres,updated_at:new Date().toISOString()});btn.disabled=false;if(error){alert("Erreur: "+error.message);return;}showOffresView();}
-function renderOffresView(){const box=$("offres-view");if(!box)return;const list=clubOffres||DEFAULT_OFFRES;box.innerHTML=list.map(o=>`<div class="offre-view"><div class="onom">${(o.nom||'').replace(/</g,'&lt;')}</div><div class="price">${(o.prix||0).toLocaleString('fr-FR')} €<span style="font-size:12px;color:var(--faint);font-weight:400"> /an</span></div>${o.desc?`<div style="font-size:12.5px;color:var(--muted);margin:-6px 0 12px;line-height:1.45">${(o.desc).replace(/</g,'&lt;')}</div>`:""}${(o.contreparties||[]).map(c=>`<div class="cp"><i class="ti ti-check"></i> ${(c||'').replace(/</g,'&lt;')}</div>`).join("")}</div>`).join("");}
+function renderOffresView(){const box=$("offres-view");if(!box)return;const list=clubOffres||DEFAULT_OFFRES;const e=s=>(s||'').replace(/</g,'&lt;');
+  box.innerHTML=list.map(o=>{const mec=/mécénat|mecenat/i.test(o.nom||'');
+    return `<div class="offre-view${mec?' mec':''}"><div class="onom">${e(o.nom)}</div><div class="price">${(+o.prix||0).toLocaleString('fr-FR')} €<span> /an</span></div>${o.desc?`<div class="odesc">${e(o.desc)}</div>`:""}<div class="ofeats">${(o.contreparties||[]).map(c=>`<div class="cp"><i class="ti ti-circle-check-filled"></i><span>${e(c)}</span></div>`).join("")}</div></div>`;
+  }).join("");}
 function showOffresView(){renderOffresView();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="grid";if(e)e.style.display="none";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="editOffres()"><i class="ti ti-edit"></i> Modifier les offres</button>';}
 function editOffres(){renderOffresEditor();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="none";if(e)e.style.display="block";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button onclick="addMecenatOffre()"><i class="ti ti-heart-handshake"></i> + Offre mécénat</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer</button>';}
 function addMecenatOffre(){if(!clubOffres)clubOffres=JSON.parse(JSON.stringify(DEFAULT_OFFRES));if(clubOffres.some(o=>/mécénat|mecenat/i.test(o.nom||""))){alert("Une offre mécénat existe déjà.");return;}clubOffres.push(JSON.parse(JSON.stringify(MECENAT_OFFRE)));renderOffresEditor();}
