@@ -950,6 +950,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
   $("dlg-body").innerHTML=`
     <div class="sp-tabs">
       <button class="sp-tabbtn active" data-p="offre" onclick="spTab('offre')"><i class="ti ti-award"></i> Offre</button>
+      <button class="sp-tabbtn" data-p="contact" onclick="spTab('contact')"><i class="ti ti-user"></i> Contacts</button>
       <button class="sp-tabbtn" data-p="mail" onclick="spTab('mail')"><i class="ti ti-mail"></i> Mail</button>
       <button class="sp-tabbtn" data-p="contrat" onclick="spTab('contrat')"><i class="ti ti-file-text"></i> Contrat</button>
       <button class="sp-tabbtn" data-p="paiement" onclick="spTab('paiement')"><i class="ti ti-cash"></i> Paiement</button>
@@ -977,6 +978,18 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <label>Notes</label>
       <textarea id="sp-notes" style="width:100%;min-height:70px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:14px" placeholder="Contacts, historique, remarques…">${(p.notes||"").replace(/</g,"&lt;")}</textarea>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px"><button class="primary" onclick="saveSponsor(${id})"><i class="ti ti-device-floppy"></i> Enregistrer</button>${p.contrat_signe===true?`<button onclick="prepareBilan(${id})"><i class="ti ti-award"></i> Bilan &amp; renouvellement</button>`:""}</div>
+    </div>
+
+    <div class="sp-page" data-p="contact">
+      <p class="muted" style="font-size:13px;margin-bottom:12px">Les interlocuteurs chez ce partenaire. Le contact <b>principal</b> est utilisé automatiquement dans l'onglet Mail.</p>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+        <div><label>Nom</label><input id="co-nom" placeholder="ex. Jean Dupont"></div>
+        <div><label>Fonction</label><input id="co-role" placeholder="ex. gérant"></div>
+        <div><label>Email</label><input id="co-email" type="email" placeholder="contact@..."></div>
+        <div><label>Téléphone</label><input id="co-phone" placeholder="06 ..."></div>
+      </div>
+      <button onclick="addContact(${id})"><i class="ti ti-user-plus"></i> Ajouter le contact</button>
+      <div id="sp-contacts" style="margin-top:14px"></div>
     </div>
 
     <div class="sp-page" data-p="contrat">
@@ -1038,7 +1051,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       </div>
       <div id="sp-posts"></div>
     </div>`;
-  renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);loadPosts(id);spTab(tab||'offre');
+  renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);loadPosts(id);loadContacts(id);spTab(tab||'offre');
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
@@ -1302,6 +1315,36 @@ async function shareSpace(id,btn){const tok=(Date.now().toString(36)+Math.random
   const {error}=await sb.from("pipeline").update({share_token:tok}).eq("id",id);
   if(error){alert("Erreur: "+error.message);if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i> Générer le lien partageable';}return;}
   const p=pipeData.find(x=>x.id===id);if(p)p.share_token=tok;renderShare(id);}
+async function loadContacts(id){
+  const box=$("sp-contacts");
+  const {data}=await sb.from("contacts").select("*").eq("pipeline_id",id).order("is_primary",{ascending:false}).order("created_at",{ascending:true});
+  const list=data||[];
+  const prim=list.find(c=>c.is_primary)||list[0];
+  if(prim&&prim.email&&$("sp-email")&&!$("sp-email").value)$("sp-email").value=prim.email;
+  if(!box)return;
+  if(!list.length){const p=pipeData.find(x=>x.id===id)||{};box.innerHTML='<div class="empty">Aucun contact enregistré.'+(p.email_to?' Email actuel : '+(''+p.email_to).replace(/</g,"&lt;"):'')+'</div>';return;}
+  box.innerHTML=list.map(c=>`<div class="item"><div class="ic"><i class="ti ti-user"></i></div><div class="grow"><div class="t">${(c.name||'Contact').replace(/</g,"&lt;")}${c.is_primary?' <span class="pill green">Principal</span>':''}</div><div class="s">${[c.role,c.email,c.phone].filter(Boolean).map(x=>(''+x).replace(/</g,"&lt;")).join(' · ')||'—'}</div></div><div class="acts">${c.email?`<button onclick="useContact('${(c.email||'').replace(/'/g,"\\'")}')"><i class="ti ti-mail"></i></button>`:''}${c.is_primary?'':`<button onclick="setPrimaryContact(${c.id},${id})" aria-label="Définir principal"><i class="ti ti-star"></i></button>`}<button onclick="delContact(${c.id},${id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div></div>`).join("");
+}
+async function addContact(id){
+  const nom=$("co-nom").value.trim(),role=$("co-role").value.trim(),email=$("co-email").value.trim(),phone=$("co-phone").value.trim();
+  if(!nom&&!email&&!phone){alert("Renseigne au moins un nom ou un email.");return;}
+  const {count}=await sb.from("contacts").select("id",{count:"exact",head:true}).eq("pipeline_id",id);
+  const prim=!count;
+  const {error}=await sb.from("contacts").insert({club_id:clubId,pipeline_id:id,name:nom||null,role:role||null,email:email||null,phone:phone||null,is_primary:prim});
+  if(error){alert("Erreur : "+error.message);return;}
+  if(prim&&email){await sb.from("pipeline").update({email_to:email}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.email_to=email;}
+  $("co-nom").value="";$("co-role").value="";$("co-email").value="";$("co-phone").value="";
+  loadContacts(id);
+}
+async function setPrimaryContact(cid,id){
+  await sb.from("contacts").update({is_primary:false}).eq("pipeline_id",id);
+  await sb.from("contacts").update({is_primary:true}).eq("id",cid);
+  const {data}=await sb.from("contacts").select("email").eq("id",cid).maybeSingle();
+  if(data&&data.email){await sb.from("pipeline").update({email_to:data.email}).eq("id",id);const p=pipeData.find(x=>x.id===id);if(p)p.email_to=data.email;if($("sp-email"))$("sp-email").value=data.email;}
+  loadContacts(id);
+}
+function useContact(email){if($("sp-email"))$("sp-email").value=email;spTab('mail');}
+async function delContact(cid,id){if(!confirm("Supprimer ce contact ?"))return;const {error}=await sb.from("contacts").delete().eq("id",cid);if(error){alert("Erreur : "+error.message);return;}loadContacts(id);}
 async function loadPosts(id){
   const box=$("sp-posts");if(!box)return;
   const {data,error}=await sb.from("posts").select("id,url,image,caption,created_at").eq("pipeline_id",id).order("created_at",{ascending:false});
