@@ -330,6 +330,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
 <script>
 // ====== CONFIGURATION ======
 const SUPABASE_URL = "https://pizltvprhpbtxgpymjsq.supabase.co";
@@ -939,8 +941,50 @@ function renderOffresView(){const box=$("offres-view");if(!box)return;const list
     return `<div class="offre-view${mec?' mec':''}"><div class="onom">${e(o.nom)}</div><div class="price">${(+o.prix||0).toLocaleString('fr-FR')} €<span> /an</span></div>${o.desc?`<div class="odesc">${e(o.desc)}</div>`:""}<div class="ofeats">${(o.contreparties||[]).map(c=>`<div class="cp"><i class="ti ti-circle-check-filled"></i><span>${e(c)}</span></div>`).join("")}</div></div>`;
   }).join("");}
 function showOffresView(){renderOffresView();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="grid";if(e)e.style.display="none";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="editOffres()"><i class="ti ti-edit"></i> Modifier les offres</button>';}
-function editOffres(){renderOffresEditor();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="none";if(e)e.style.display="block";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button onclick="addMecenatOffre()"><i class="ti ti-heart-handshake"></i> + Offre mécénat</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer</button>';}
+function editOffres(){renderOffresEditor();const v=$("offres-view"),e=$("offres-edit");if(v)v.style.display="none";if(e)e.style.display="block";const a=$("offres-actions");if(a)a.innerHTML='<button onclick="importOffresDoc()"><i class="ti ti-file-import"></i> Importer (PDF/PPT)</button><button onclick="addOffre()"><i class="ti ti-plus"></i> Ajouter une offre</button><button onclick="addMecenatOffre()"><i class="ti ti-heart-handshake"></i> + Mécénat</button><button class="primary" onclick="saveOffres(this)"><i class="ti ti-device-floppy"></i> Enregistrer</button>';}
 function addMecenatOffre(){if(!clubOffres)clubOffres=JSON.parse(JSON.stringify(DEFAULT_OFFRES));if(clubOffres.some(o=>/mécénat|mecenat/i.test(o.nom||""))){alert("Une offre mécénat existe déjà.");return;}clubOffres.push(JSON.parse(JSON.stringify(MECENAT_OFFRE)));renderOffresEditor();}
+function importOffresDoc(){
+  const inp=document.createElement("input");inp.type="file";inp.accept=".pdf,.pptx";
+  inp.onchange=async e=>{const f=e.target.files&&e.target.files[0];if(!f)return;await handleOffresDoc(f);};
+  inp.click();
+}
+async function extractPdfText(file){
+  const pdfjs=window.pdfjsLib;if(!pdfjs)throw new Error("Lecteur PDF non chargé");
+  try{pdfjs.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";}catch(e){}
+  const buf=await file.arrayBuffer();
+  const doc=await pdfjs.getDocument({data:buf}).promise;
+  let txt="";
+  for(let i=1;i<=doc.numPages;i++){const p=await doc.getPage(i);const c=await p.getTextContent();txt+=c.items.map(x=>x.str).join(" ")+"\n";}
+  return txt;
+}
+async function extractPptxText(file){
+  if(!window.JSZip)throw new Error("Lecteur PPT non chargé");
+  const zip=await window.JSZip.loadAsync(await file.arrayBuffer());
+  const names=Object.keys(zip.files).filter(n=>/ppt\/slides\/slide\d+\.xml$/.test(n)).sort();
+  let txt="";
+  for(const n of names){const xml=await zip.files[n].async("string");const m=xml.match(/<a:t>[\s\S]*?<\/a:t>/g)||[];txt+=m.map(t=>t.replace(/<[^>]+>/g,"")).join(" ")+"\n";}
+  return txt;
+}
+async function handleOffresDoc(f){
+  const a=$("offres-actions");const old=a?a.innerHTML:"";if(a)a.innerHTML='<span class="muted"><span class="spin"></span> Lecture du document…</span>';
+  try{
+    let text="";
+    if(/\.pdf$/i.test(f.name))text=await extractPdfText(f);
+    else if(/\.pptx$/i.test(f.name))text=await extractPptxText(f);
+    else throw new Error("Format non supporté (PDF ou PPTX).");
+    if(!text||text.trim().length<40)throw new Error("Peu de texte détecté (document scanné/image ?).");
+    if(a)a.innerHTML='<span class="muted"><span class="spin"></span> L\'IA analyse les offres…</span>';
+    const raw=await aiGenerate("offres",{text});
+    const jstr=(raw.match(/\[[\s\S]*\]/)||[raw])[0];
+    let arr;try{arr=JSON.parse(jstr);}catch(e){throw new Error("Réponse IA illisible, réessaie.");}
+    if(!Array.isArray(arr)||!arr.length)throw new Error("Aucune offre détectée dans le document.");
+    const clean=arr.map(o=>({nom:(""+(o.nom||"Offre")).slice(0,60),prix:(+o.prix||0),desc:(o.desc?(""+o.desc).slice(0,240):""),contreparties:(Array.isArray(o.contreparties)?o.contreparties.map(c=>""+c).filter(Boolean):[])}));
+    if(!confirm(clean.length+" offre(s) détectée(s) : "+clean.map(o=>o.nom).join(", ")+".\n\nRemplacer tes offres actuelles par celles-ci ? (tu pourras les modifier avant d'enregistrer)"))return;
+    clubOffres=clean;editOffres();
+    alert("Offres importées ✅ Vérifie-les puis clique Enregistrer.");
+  }catch(e){alert("Import impossible : "+e.message);}
+  finally{if(a&&a.innerHTML.includes("spin"))a.innerHTML=old;}
+}
 function switchTab(name){document.querySelectorAll(".tabpage").forEach(el=>{el.style.display=el.classList.contains("tab-"+name)?"":"none";});document.querySelectorAll(".tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.tab===name));window.scrollTo({top:0,behavior:"smooth"});}
 function spTab(n){document.querySelectorAll(".sp-page").forEach(el=>el.classList.toggle("on",el.dataset.p===n));document.querySelectorAll(".sp-tabbtn").forEach(b=>b.classList.toggle("active",b.dataset.p===n));const b=document.querySelector(".dlg-b");if(b)b.scrollTop=0;}
 function actionHint(st){const m={"À contacter":"Envoyer le dossier de sponsoring + l'email d'approche.","Contacté":"Relancer sous 5 jours (appel ou passage en boutique).","RDV":"Préparer une proposition chiffrée et présenter les 3 packs.","Signé":"Générer le contrat, encaisser, planifier la livraison des contreparties.","Perdu":"Noter la raison du refus et recontacter la saison prochaine."};return m[st]||"";}
