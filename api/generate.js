@@ -34,7 +34,7 @@ function buildPrompt(type, d) {
   if (type === 'offres') {
     return {
       system: "Tu extrais les offres de sponsoring depuis le texte d'un dossier de club sportif. Tu réponds UNIQUEMENT par un tableau JSON valide, sans texte ni balise markdown autour.",
-      prompt: `Voici le texte d'un dossier de partenariat. Identifie les formules/offres de sponsoring et renvoie un tableau JSON. Chaque élément : {"nom": string, "prix": number (en euros, 0 si non précisé), "desc": string (une phrase courte de présentation), "contreparties": [string, ...]}. Reprends fidèlement les intitulés du document, n'invente pas d'offre. Réponds uniquement le JSON.\n\nTEXTE DU DOCUMENT :\n${(d.text || '').slice(0, 12000)}`
+      prompt: `Voici le texte d'un dossier de partenariat. Identifie les formules/offres de sponsoring et renvoie un tableau JSON. Chaque élément : {"nom": string, "prix": number (en euros, 0 si non précisé), "desc": string, "contreparties": [string, ...]}.\n\nRègles :\n- Reprends fidèlement les intitulés, les prix et les contreparties du document. N'invente jamais d'offre, de prix ni de contrepartie.\n- Pour "desc" : si le document fournit une description, reprends-la. Sinon, RÉDIGE toi-même une description courte (une phrase), élégante et vendeuse, orientée bénéfice pour le partenaire (visibilité locale, image, proximité), et cohérente avec le niveau de l'offre (plus l'offre est chère, plus le ton est premium). Évite les formulations plates du type « formule d'entrée de gamme ».\n\nRéponds uniquement le JSON.\n\nTEXTE DU DOCUMENT :\n${(d.text || '').slice(0, 12000)}`
     };
   }
   if (type === 'contrat') {
