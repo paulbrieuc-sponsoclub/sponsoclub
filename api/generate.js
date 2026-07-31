@@ -14,7 +14,7 @@ module.exports = async (req, res) => {
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 1600,
+        max_tokens: 2600,
         system,
         messages: [{ role: 'user', content: prompt }]
       })
@@ -31,6 +31,12 @@ module.exports = async (req, res) => {
 function buildPrompt(type, d) {
   const club = `Club : ${d.club || 'le club'} (${d.sport || 'sport'}), ${d.lic || '?'} licenciés, environ ${d.spec || '?'} spectateurs par match, ${d.res || '?'} abonnés sur les réseaux sociaux.`;
   const mecenat = d.mecenat !== false;
+  if (type === 'offres') {
+    return {
+      system: "Tu extrais les offres de sponsoring depuis le texte d'un dossier de club sportif. Tu réponds UNIQUEMENT par un tableau JSON valide, sans texte ni balise markdown autour.",
+      prompt: `Voici le texte d'un dossier de partenariat. Identifie les formules/offres de sponsoring et renvoie un tableau JSON. Chaque élément : {"nom": string, "prix": number (en euros, 0 si non précisé), "desc": string (une phrase courte de présentation), "contreparties": [string, ...]}. Reprends fidèlement les intitulés du document, n'invente pas d'offre. Réponds uniquement le JSON.\n\nTEXTE DU DOCUMENT :\n${(d.text || '').slice(0, 12000)}`
+    };
+  }
   if (type === 'contrat') {
     const cps = (d.contreparties || []).join(' ; ');
     const mecArt = mecenat ? `\nLe Club étant une association d'intérêt général, le versement ouvre droit pour le Parrain à une réduction d'impôt de 60 % au titre du mécénat (art. 238 bis du CGI) ; ajoute un article « Régime fiscal (mécénat) » le mentionnant et précise qu'un reçu fiscal Cerfa sera remis.` : '';
