@@ -1010,7 +1010,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
         <span id="sp-email-status" style="font-size:12px;color:var(--muted)">${p.email_sent_at?('Dernier mail envoyé le '+new Date(p.email_sent_at).toLocaleDateString('fr-FR')+(p.email_opened_at?' · ouvert ✓':'')):''}</span>
       </div>
       <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
-        <div><label>Email du contact</label><input id="sp-email" type="email" value="${(p.email_to||'').replace(/"/g,'&quot;')}" placeholder="contact@commerce.fr"></div>
+        <div><label>Email du contact</label><div id="sp-email-field"><input id="sp-email" type="email" value="${(p.email_to||'').replace(/"/g,'&quot;')}" placeholder="contact@commerce.fr"></div></div>
         <div><label>Objet</label><input id="sp-subject" value="${(p.email_subject||'').replace(/"/g,'&quot;')}" placeholder="Partenariat avec le club"></div>
       </div>
       <textarea id="sp-body" style="width:100%;min-height:150px;padding:9px 11px;border:1px solid var(--bstrong);border-radius:8px;font-family:inherit;font-size:13.5px;line-height:1.6" placeholder="Rédige avec l'IA ou écris ton message…"></textarea>
@@ -1315,12 +1315,27 @@ async function shareSpace(id,btn){const tok=(Date.now().toString(36)+Math.random
   const {error}=await sb.from("pipeline").update({share_token:tok}).eq("id",id);
   if(error){alert("Erreur: "+error.message);if(btn){btn.disabled=false;btn.innerHTML='<i class="ti ti-link"></i> Générer le lien partageable';}return;}
   const p=pipeData.find(x=>x.id===id);if(p)p.share_token=tok;renderShare(id);}
+function renderEmailField(list){
+  const wrap=$("sp-email-field");if(!wrap)return;
+  const withEmail=(list||[]).filter(c=>c.email);
+  const cur=$("sp-email")?$("sp-email").value.trim():"";
+  if(withEmail.length>=2){
+    const prim=withEmail.find(c=>c.is_primary);
+    let opts=withEmail.map(c=>{const sel=(cur?cur===c.email:(prim?prim.email===c.email:false));return `<option value="${(c.email||'').replace(/"/g,'&quot;')}" ${sel?'selected':''}>${((c.name?c.name+' · ':'')+c.email).replace(/</g,'&lt;')}</option>`;}).join("");
+    if(cur&&!withEmail.some(c=>c.email===cur))opts=`<option value="${cur.replace(/"/g,'&quot;')}" selected>${cur.replace(/</g,'&lt;')}</option>`+opts;
+    opts+='<option value="__other__">✏️ Autre adresse…</option>';
+    wrap.innerHTML=`<select id="sp-email" onchange="if(this.value==='__other__')emailFieldOther()">${opts}</select>`;
+  }else{
+    const val=cur||(withEmail[0]&&withEmail[0].email)||"";
+    wrap.innerHTML=`<input id="sp-email" type="email" value="${(val||'').replace(/"/g,'&quot;')}" placeholder="contact@commerce.fr">`;
+  }
+}
+function emailFieldOther(){const wrap=$("sp-email-field");if(!wrap)return;wrap.innerHTML='<input id="sp-email" type="email" value="" placeholder="contact@commerce.fr">';$("sp-email").focus();}
 async function loadContacts(id){
   const box=$("sp-contacts");
   const {data}=await sb.from("contacts").select("*").eq("pipeline_id",id).order("is_primary",{ascending:false}).order("created_at",{ascending:true});
   const list=data||[];
-  const prim=list.find(c=>c.is_primary)||list[0];
-  if(prim&&prim.email&&$("sp-email")&&!$("sp-email").value)$("sp-email").value=prim.email;
+  renderEmailField(list);
   if(!box)return;
   if(!list.length){const p=pipeData.find(x=>x.id===id)||{};box.innerHTML='<div class="empty">Aucun contact enregistré.'+(p.email_to?' Email actuel : '+(''+p.email_to).replace(/</g,"&lt;"):'')+'</div>';return;}
   box.innerHTML=list.map(c=>`<div class="item"><div class="ic"><i class="ti ti-user"></i></div><div class="grow"><div class="t">${(c.name||'Contact').replace(/</g,"&lt;")}${c.is_primary?' <span class="pill green">Principal</span>':''}</div><div class="s">${[c.role,c.email,c.phone].filter(Boolean).map(x=>(''+x).replace(/</g,"&lt;")).join(' · ')||'—'}</div></div><div class="acts">${c.email?`<button onclick="useContact('${(c.email||'').replace(/'/g,"\\'")}')"><i class="ti ti-mail"></i></button>`:''}${c.is_primary?'':`<button onclick="setPrimaryContact(${c.id},${id})" aria-label="Définir principal"><i class="ti ti-star"></i></button>`}<button onclick="delContact(${c.id},${id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div></div>`).join("");
