@@ -1000,6 +1000,11 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       <p class="muted" style="font-size:13px;margin-bottom:12px">Génère un contrat de parrainage pré-rempli (montant, contreparties, durée) à partir de l'offre. Modifiable, téléchargeable en Word, et marqué comme signé une fois retourné.</p>
       <button onclick="genContract(${id},this)"><i class="ti ti-sparkles"></i> Générer le contrat (IA)</button>
       <div id="sp-contract" style="margin-top:14px"></div>
+      <div style="border-top:1px solid var(--border);margin:18px 0 12px"></div>
+      <label style="font-weight:500;display:block;margin-bottom:4px"><i class="ti ti-upload"></i> Ou importer un contrat signé (hors outil)</label>
+      <p class="muted" style="font-size:12.5px;margin-bottom:8px">Pour les partenaires existants ou un contrat édité ailleurs. PDF ou Word, max 5 Mo. L'import le marque comme signé.</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><input type="file" id="ct-file" accept=".pdf,.doc,.docx,image/*" style="font-size:13px;border:none;padding:0"><button onclick="uploadContract(${id},this)"><i class="ti ti-upload"></i> Importer</button><span id="ct-file-status" class="muted" style="font-size:12px"></span></div>
+      <div id="sp-contract-file" style="margin-top:12px"></div>
     </div>
 
     <div class="sp-page" data-p="mail">
@@ -1051,7 +1056,7 @@ function openSponsor(id,tab){const p=pipeData.find(x=>x.id===id);if(!p)return;sp
       </div>
       <div id="sp-posts"></div>
     </div>`;
-  renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);loadPosts(id);loadContacts(id);spTab(tab||'offre');
+  renderOffrePick();renderCps(pack);renderShare(id);renderAttach();loadSponsorMails(id);loadPosts(id);loadContacts(id);renderImportedContract(id);spTab(tab||'offre');
   if(p.contrat)renderContractBox(p.contrat,id,p.contrat_signe);
   $("dlg").showModal();
 }
@@ -1278,6 +1283,34 @@ async function loadSponsorMails(id){
   }).join("")+'</div>';
 }
 function dlDoc(taId,name){const ta=document.getElementById(taId);const esc=ta.value.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\n/g,"<br>");const html='<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"></head><body style="font-family:Calibri,Arial,sans-serif;font-size:11pt;line-height:1.5">'+esc+'</body></html>';const blob=new Blob(["﻿",html],{type:"application/msword"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=(name||"document")+".doc";document.body.appendChild(a);a.click();a.remove();}
+function uploadContract(id,btn){
+  const f=$("ct-file")&&$("ct-file").files&&$("ct-file").files[0];
+  if(!f){alert("Choisis un fichier à importer.");return;}
+  if(f.size>5*1024*1024){alert("Fichier trop lourd (max 5 Mo).");return;}
+  if(!confirm("Importer ce contrat et le marquer comme signé ? (définitif)"))return;
+  const st=$("ct-file-status");if(st)st.textContent="Import…";
+  const rd=new FileReader();
+  rd.onload=async e=>{
+    const upd={contrat_file:""+e.target.result,contrat_file_name:f.name,contrat_file_mime:f.type||"application/octet-stream",contrat_signe:true,signe_at:new Date().toISOString(),statut:"Signé"};
+    const {error}=await sb.from("pipeline").update(upd).eq("id",id);
+    if(st)st.textContent="";
+    if(error){alert("Erreur : "+error.message);return;}
+    const p=pipeData.find(x=>x.id===id);if(p)Object.assign(p,upd);
+    if($("sp-statut"))$("sp-statut").value="Signé";
+    if($("ct-file"))$("ct-file").value="";
+    renderImportedContract(id);loadPipe();
+    alert("Contrat importé et marqué comme signé ✅");
+  };
+  rd.onerror=()=>{if(st)st.textContent="";alert("Lecture du fichier impossible.");};
+  rd.readAsDataURL(f);
+}
+function renderImportedContract(id){
+  const box=$("sp-contract-file");if(!box)return;const p=pipeData.find(x=>x.id===id)||{};
+  if(!p.contrat_file){box.innerHTML="";return;}
+  box.innerHTML=`<div class="item"><i class="ti ti-file-check" style="font-size:20px;color:var(--green)"></i><div class="grow"><div class="t">${(p.contrat_file_name||'Contrat importé').replace(/</g,"&lt;")}</div><div class="s"><span class="pill green"><i class="ti ti-lock"></i> Signé — importé</span></div></div><button onclick="dlImportedContract(${id})"><i class="ti ti-download"></i> Télécharger</button><button onclick="delImportedContract(${id})" aria-label="Supprimer" style="padding:8px"><i class="ti ti-trash"></i></button></div>`;
+}
+function dlImportedContract(id){const p=pipeData.find(x=>x.id===id);if(!p||!p.contrat_file)return;const a=document.createElement("a");a.href=p.contrat_file;a.download=p.contrat_file_name||"contrat";document.body.appendChild(a);a.click();a.remove();}
+async function delImportedContract(id){if(!confirm("Supprimer le contrat importé ?"))return;const upd={contrat_file:null,contrat_file_name:null,contrat_file_mime:null};const {error}=await sb.from("pipeline").update(upd).eq("id",id);if(error){alert("Erreur : "+error.message);return;}const p=pipeData.find(x=>x.id===id);if(p)Object.assign(p,upd);renderImportedContract(id);}
 function renderContractBox(text,id,signed){
   const esc=(text||"").replace(/</g,"&lt;");
   const dl=`<button onclick="dlDoc('ct-out','contrat-sponsoclub')"><i class="ti ti-file-word"></i> Télécharger (Word)</button>`;
