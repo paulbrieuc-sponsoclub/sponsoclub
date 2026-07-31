@@ -10,6 +10,42 @@ module.exports = async (req, res) => {
   const h = { apikey: key, Authorization: 'Bearer ' + key };
   const PRIX = 39.99;
 
+  // ---- Suivi de prospection (CRUD) : table Supabase `prospection` ----
+  if (req.query && req.query.prospection) {
+    const ph = { apikey: key, Authorization: 'Bearer ' + key, 'content-type': 'application/json' };
+    const base = url + '/rest/v1/prospection';
+    try {
+      if (req.method === 'GET') {
+        const d = await (await fetch(base + '?select=*&order=created_at.asc', { headers: ph })).json();
+        res.status(200).json({ rows: Array.isArray(d) ? d : [] }); return;
+      }
+      const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+      if (req.method === 'POST') {
+        const payload = Array.isArray(body.rows) ? body.rows : [body];
+        const r = await fetch(base, { method: 'POST', headers: Object.assign({}, ph, { Prefer: 'return=representation' }), body: JSON.stringify(payload) });
+        const j = await r.json();
+        if (!r.ok) { res.status(500).json({ error: (j && (j.message || j.hint)) || 'Insertion impossible.' }); return; }
+        res.status(200).json({ rows: j }); return;
+      }
+      if (req.method === 'PATCH') {
+        const id = (req.query && req.query.id) || '';
+        if (!id) { res.status(400).json({ error: 'id manquant.' }); return; }
+        body.updated_at = new Date().toISOString();
+        const r = await fetch(base + '?id=eq.' + encodeURIComponent(id), { method: 'PATCH', headers: Object.assign({}, ph, { Prefer: 'return=representation' }), body: JSON.stringify(body) });
+        const j = await r.json();
+        if (!r.ok) { res.status(500).json({ error: (j && (j.message || j.hint)) || 'Mise à jour impossible.' }); return; }
+        res.status(200).json({ rows: j }); return;
+      }
+      if (req.method === 'DELETE') {
+        const id = (req.query && req.query.id) || '';
+        if (!id) { res.status(400).json({ error: 'id manquant.' }); return; }
+        const r = await fetch(base + '?id=eq.' + encodeURIComponent(id), { method: 'DELETE', headers: ph });
+        res.status(200).json({ ok: r.ok }); return;
+      }
+      res.status(405).json({ error: 'Méthode non autorisée.' }); return;
+    } catch (e) { res.status(500).json({ error: String((e && e.message) || e) }); return; }
+  }
+
   // Connexion à un compte club : génère un lien de connexion (magic link)
   const asEmail = (req.query && req.query.as) || '';
   if (asEmail) {
