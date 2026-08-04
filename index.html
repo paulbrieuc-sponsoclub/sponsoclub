@@ -4,15 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sponsoclub</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Crect width='52' height='52' rx='14' fill='%230f172a'/%3E%3Ctext x='24' y='35' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-size='30' font-weight='700' fill='white'%3Esc%3C/text%3E%3Ccircle cx='40' cy='33' r='4' fill='%23159169'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#f5f6f8;--surface:#fff;--surface2:#f0f2f5;--text:#1a1d21;--muted:#6b7280;--faint:#9ca3af;
-    --border:#e5e7eb;--bstrong:#d1d5db;--accent:#3b4cd8;--accentbg:#eceefb;--accenttx:#2b3aab;
+    --border:#e5e7eb;--bstrong:#d1d5db;--accent:#1e40af;--accentbg:#e7edfb;--accenttx:#1a3680;
     --green:#159169;--greenbg:#e2f4ee;--amber:#b5730f;--amberbg:#fbf0dd;--radius:10px;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
-  .top{background:#14161c;color:#fff;padding:14px 22px;display:flex;align-items:center;gap:12px}
+  .top{background:#0f172a;color:#fff;padding:14px 22px;display:flex;align-items:center;gap:12px}
   .top .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px}
   .top h1{font-size:16px;font-weight:600}
   .top .me{margin-left:auto;display:flex;align-items:center;gap:12px;font-size:13px;color:#c7cbd6}
@@ -34,7 +37,7 @@
   button{font-family:inherit;font-size:13px;padding:9px 14px;border-radius:8px;border:1px solid var(--bstrong);background:var(--surface);color:var(--text);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
   button:hover{background:var(--surface2)} button:active{transform:scale(.98)} button i{font-size:16px}
   button:disabled{opacity:.4;cursor:default} button:disabled:hover{background:var(--surface)}
-  .primary{background:var(--accent);border-color:var(--accent);color:#fff}.primary:hover{background:#3341bf}
+  .primary{background:var(--accent);border-color:var(--accent);color:#fff}.primary:hover{background:#17357f}
   .link{background:none;border:none;color:var(--accenttx);cursor:pointer;font-size:13px;padding:4px}
   .sect{margin-top:24px}
   .today-sec{margin-bottom:20px}
@@ -142,7 +145,7 @@
 
 <!-- ÉCRAN DE CONNEXION -->
 <div id="auth">
-  <div class="brandbig"><div class="logo"><i class="ti ti-trophy"></i></div><span>Sponsoclub</span></div>
+  <div class="brandbig"><span style="font-family:'Sora',sans-serif;font-size:30px;font-weight:600;letter-spacing:-.03em;color:#0f172a">sponsoclub<span style="color:#159169">.</span></span></div>
   <div class="authcard">
     <h2 id="auth-title" style="text-align:center">Connexion</h2>
     <div class="field"><label>Email</label><input id="email" type="email" placeholder="vous@club.fr"></div>
@@ -159,7 +162,7 @@
   <div class="top">
     <div class="logo" id="topLogo"><i class="ti ti-trophy"></i></div>
     <h1 id="appTitle">Sponsoclub</h1>
-    <div class="me"><span id="who"></span><button onclick="logout()" style="color:#fff;border-color:#333;background:#1d2029"><i class="ti ti-logout"></i> Déconnexion</button></div>
+    <div class="me"><span id="who"></span><button onclick="logout()" style="color:#fff;border-color:#333;background:#16233a"><i class="ti ti-logout"></i> Déconnexion</button></div>
   </div>
   <div class="wrap">
     <div class="tabs">
@@ -199,8 +202,8 @@
           <div><label>Blason du club</label><input type="file" id="logo-file" accept="image/*" onchange="onLogo(event)" style="font-size:12px;border:none;padding:0"></div>
         </div>
         <div style="display:flex;align-items:flex-end;gap:16px">
-          <div><label>Couleur principale</label><input type="color" id="col-primary" value="#3b4cd8" onchange="setTheme('primary',this.value)" style="width:52px;height:38px;padding:2px"></div>
-          <div><label>Couleur secondaire</label><input type="color" id="col-secondary" value="#e0b400" onchange="setTheme('secondary',this.value)" style="width:52px;height:38px;padding:2px"></div>
+          <div><label>Couleur principale</label><input type="color" id="col-primary" value="#1e40af" onchange="setTheme('primary',this.value)" style="width:52px;height:38px;padding:2px"></div>
+          <div><label>Couleur secondaire</label><input type="color" id="col-secondary" value="#159169" onchange="setTheme('secondary',this.value)" style="width:52px;height:38px;padding:2px"></div>
           <span class="muted" style="padding-bottom:9px">L'appli se met aux couleurs du club</span>
         </div>
       </div>
@@ -347,7 +350,7 @@ function dismissNotif(key){dismissedNotifs.add(key);saveDismissed();renderToday(
 function clearNotifs(){if(!_curNotifKeys.length)return;if(!confirm("Masquer toutes les notifications ?"))return;_curNotifKeys.forEach(k=>dismissedNotifs.add(k));saveDismissed();renderToday();}
 const PAGE=10;
 let pipeData=[], spSaved={}, filtered=[];
-let clubLogo=null, clubPrimary="#3b4cd8", clubSecondary="#e0b400", clubOffres=null, clubMecenat=true;
+let clubLogo=null, clubPrimary="#1e40af", clubSecondary="#159169", clubOffres=null, clubMecenat=true;
 const DEFAULT_OFFRES=[
   {nom:"Bronze",prix:300,desc:"La formule pour démarrer : une visibilité locale simple et efficace, sans gros budget. Idéale pour un commerce de proximité qui veut soutenir le club.",contreparties:["Logo sur le site du club","4 posts sur les réseaux / an","Citation dans la newsletter","Mention au micro les jours de match","Logo sur l'affiche de la saison"]},
   {nom:"Argent",prix:800,desc:"Le bon équilibre visibilité / budget : présence au stade, sur les tenues et communication renforcée sur nos réseaux. Pour vraiment se faire remarquer localement.",contreparties:["Tout le pack Bronze","Panneau publicitaire au stade","Logo sur le short","12 posts sur les réseaux","Invitation VIP à un match"]},
@@ -414,7 +417,7 @@ async function loadProfile(){
     if($("p-posts"))$("p-posts").value=data.viz_posts||20;
     if($("p-portee"))$("p-portee").value=(data.viz_portee!=null?data.viz_portee:40);
     if($("p-entourage"))$("p-entourage").value=data.viz_entourage||2;
-    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#3b4cd8"; clubSecondary=data.couleur_secondaire||"#e0b400"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
+    clubLogo=data.logo||null; clubPrimary=data.couleur_primaire||"#1e40af"; clubSecondary=data.couleur_secondaire||"#159169"; clubOffres=data.offres||null; clubMecenat=data.mecenat!==false; if($("p-mecenat"))$("p-mecenat").checked=clubMecenat;
     if($("p-relance"))$("p-relance").checked=data.relance_auto!==false;
     clubSub={status:data.subscription_status||null,plan:data.subscription_plan||null,until:data.subscription_until||null,cancel:data.subscription_cancel===true};
     clubConnect={account:data.stripe_account_id||null,enabled:data.stripe_charges_enabled===true};
@@ -471,7 +474,7 @@ async function inviteMember(btn){
       <p>Bonjour,</p>
       <p><b>${(user.email||"Un membre").replace(/</g,"&lt;")}</b> vous invite à rejoindre <b>${club.replace(/</g,"&lt;")}</b> sur <b>Sponsoclub</b>, l'outil qui aide le club à trouver et gérer ses sponsors.</p>
       <p>Pour rejoindre le compte, créez votre accès avec <b>cette adresse email</b> (${email}) :</p>
-      <p><a href="https://sponsoclub.fr" style="display:inline-block;background:#3b4cd8;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:bold">Rejoindre ${club.replace(/</g,"&lt;")}</a></p>
+      <p><a href="https://sponsoclub.fr" style="display:inline-block;background:#1e40af;color:#fff;text-decoration:none;padding:12px 22px;border-radius:8px;font-weight:bold">Rejoindre ${club.replace(/</g,"&lt;")}</a></p>
       <p style="color:#666;font-size:13px">Une fois inscrit avec cette adresse, vous serez automatiquement rattaché au club et verrez les mêmes sponsors et données que l'équipe.</p>
       <p style="color:#999;font-size:12px">Sponsoclub · sponsoclub.fr</p>
     </div>`;
@@ -566,7 +569,7 @@ function cn(n){return n.replace(/\b([A-ZÀ-Ÿ]{2,})\b/g,w=>w.charAt(0)+w.slice(1
 function ml(s){return s>=4?["match élevé","green"]:s>=3?["match moyen","amber"]:["à qualifier","gray"];}
 function initials(n){const w=n.split(/\s+/).filter(x=>x.length>1);return (w.slice(0,2).map(x=>x[0]).join("")||n[0]||"?").toUpperCase();}
 function hue(n){let h=0;for(let i=0;i<n.length;i++)h=(h*31+n.charCodeAt(i))%360;return `hsl(${h},42%,47%)`;}
-function vign(p){if(p.photo)return `<img src="${p.photo}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0">`;return `<div style="width:44px;height:44px;border-radius:10px;background:${hue(p.name)};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0;position:relative">${initials(p.name)}<span style="position:absolute;right:-5px;bottom:-5px;width:20px;height:20px;border-radius:50%;background:#fff;color:#14161c;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 0 0 1px #e5e7eb"><i class="ti ${p.ic}"></i></span></div>`;}
+function vign(p){if(p.photo)return `<img src="${p.photo}" alt="" style="width:44px;height:44px;border-radius:10px;object-fit:cover;flex-shrink:0">`;return `<div style="width:44px;height:44px;border-radius:10px;background:${hue(p.name)};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0;position:relative">${initials(p.name)}<span style="position:absolute;right:-5px;bottom:-5px;width:20px;height:20px;border-radius:50%;background:#fff;color:#0f172a;display:flex;align-items:center;justify-content:center;font-size:11px;box-shadow:0 0 0 1px #e5e7eb"><i class="ti ${p.ic}"></i></span></div>`;}
 async function geocode(q){const r=await fetch("https://api-adresse.data.gouv.fr/search/?limit=1&q="+encodeURIComponent(q));if(!r.ok)throw new Error("geo");const d=await r.json();if(!d.features||!d.features.length)throw new Error("adresse introuvable");const f=d.features[0];return{lon:f.geometry.coordinates[0],lat:f.geometry.coordinates[1],label:f.properties.label};}
 async function nearby(lat,lon,rad){let all=[];let ok=false;for(let p=1;p<=16;p++){const r=await fetch(`https://recherche-entreprises.api.gouv.fr/near_point?lat=${lat}&long=${lon}&radius=${rad}&per_page=25&page=${p}`);if(!r.ok){if(p===1)throw new Error("entreprises");break;}ok=true;const d=await r.json();const res=d.results||[];all=all.concat(res);if(res.length<25)break;}if(!ok)throw new Error("entreprises");return all;}
 async function overpass(lat,lon,radKm){
@@ -691,7 +694,7 @@ function renderToday(){
   if(visN.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-bell" style="color:var(--accent)"></i> Notifications récentes <button onclick="clearNotifs()" style="margin-left:auto;font-size:12px;padding:5px 10px"><i class="ti ti-eraser"></i> Tout effacer</button></h3><div class="card" style="padding:6px 14px">${visN.slice(0,12).map(n=>`<div class="item" style="border-left:3px solid ${n.k.c};padding-left:12px"><div class="ic" style="background:${n.k.c}1f;color:${n.k.c}"><i class="ti ${n.k.icon}"></i></div><div class="grow"><div class="t">${n.txt}</div><div class="s" style="display:flex;align-items:center;gap:8px;margin-top:2px"><span class="pill" style="background:${n.k.c}1a;color:${n.k.c};font-weight:600">${n.k.tag}</span>${n.date?timeAgo(n.date):""}</div></div><button onclick="openSponsor(${n.id},'${n.tab}')" aria-label="Ouvrir" style="padding:8px"><i class="ti ti-arrow-right"></i></button><button onclick="dismissNotif('${n.key.replace(/'/g,"")}')" aria-label="Masquer" style="padding:8px"><i class="ti ti-x"></i></button></div>`).join("")}</div></div>`);
   // 1. Relances programmées (validées par le club, en attente d'envoi)
   const prog=relancesData.filter(r=>r.status==="programmé");
-  if(prog.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-clock-hour-4" style="color:var(--accent)"></i> Relances programmées (${prog.length})</h3><div class="card">${prog.map(r=>{const p=pipeData.find(x=>x.id===r.pipeline_id)||{};const d=r.scheduled_for?new Date(r.scheduled_for).toLocaleDateString('fr-FR'):"";return `<div class="item"><div class="ic" style="background:#3b4cd822;color:#3b4cd8"><i class="ti ti-mail-forward"></i></div><div class="grow"><div class="t">${(p.name||'Partenaire').replace(/</g,"&lt;")}</div><div class="s">Relance prévue le ${d}</div></div><div class="acts"><button onclick="sendRelanceRow(${r.id},this)"><i class="ti ti-send"></i> Envoyer</button><button onclick="cancelRelance(${r.id})" aria-label="Annuler" style="padding:8px"><i class="ti ti-x"></i></button></div></div>`;}).join("")}</div></div>`);
+  if(prog.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-clock-hour-4" style="color:var(--accent)"></i> Relances programmées (${prog.length})</h3><div class="card">${prog.map(r=>{const p=pipeData.find(x=>x.id===r.pipeline_id)||{};const d=r.scheduled_for?new Date(r.scheduled_for).toLocaleDateString('fr-FR'):"";return `<div class="item"><div class="ic" style="background:#1e40af22;color:#1e40af"><i class="ti ti-mail-forward"></i></div><div class="grow"><div class="t">${(p.name||'Partenaire').replace(/</g,"&lt;")}</div><div class="s">Relance prévue le ${d}</div></div><div class="acts"><button onclick="sendRelanceRow(${r.id},this)"><i class="ti ti-send"></i> Envoyer</button><button onclick="cancelRelance(${r.id})" aria-label="Annuler" style="padding:8px"><i class="ti ti-x"></i></button></div></div>`;}).join("")}</div></div>`);
   // 2. Relances à préparer (contacté > 5 jours, pas de réponse, pas déjà programmée)
   const progIds=new Set(prog.map(r=>r.pipeline_id));
   const relances=pipeData.filter(p=>p.statut==="Contacté"&&p.email_sent_at&&(now-new Date(p.email_sent_at).getTime()>5*DAY)&&!progIds.has(p.id));
@@ -705,7 +708,7 @@ function renderToday(){
   if(bilans.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-award" style="color:#7a3ff2"></i> Bilans & renouvellements (${bilans.length})</h3><div class="card">${bilans.map(p=>{const fin=new Date(p.partner_end);const jrs=Math.round((fin.getTime()-now)/DAY);const sub=jrs<0?("terminé depuis le "+fin.toLocaleDateString('fr-FR')):("se termine le "+fin.toLocaleDateString('fr-FR')+(jrs<=30?" (dans "+jrs+" j)":""));return `<div class="item"><div class="ic" style="background:#7a3ff21f;color:#7a3ff2"><i class="ti ti-award"></i></div><div class="grow"><div class="t">${(p.name||'').replace(/</g,"&lt;")}</div><div class="s">${sub} — envoyer le bilan + proposer le renouvellement</div></div><button class="primary" onclick="prepareBilan(${p.id})"><i class="ti ti-send"></i> Bilan</button></div>`;}).join("")}</div></div>`);
   // 3. Prochaines actions planifiées sur un sponsor
   const na=pipeData.filter(p=>p.statut!=="Signé"&&p.next_action&&(""+p.next_action).trim());
-  if(na.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-flag" style="color:var(--accent)"></i> Prochaines actions (${na.length})</h3><div class="card">${na.map(p=>line("ti-building-store","#3b4cd8",p.name,"→ "+(""+p.next_action).replace(/</g,"&lt;"),p.id)).join("")}</div></div>`);
+  if(na.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-flag" style="color:var(--accent)"></i> Prochaines actions (${na.length})</h3><div class="card">${na.map(p=>line("ti-building-store","#1e40af",p.name,"→ "+(""+p.next_action).replace(/</g,"&lt;"),p.id)).join("")}</div></div>`);
   // 4. Tâches perso à échéance
   const taches=actionsData.filter(a=>!a.fait&&a.echeance&&new Date(a.echeance).getTime()<=endToday.getTime());
   if(taches.length)secs.push(`<div class="today-sec"><h3><i class="ti ti-checklist" style="color:var(--accent)"></i> Tâches du jour (${taches.length})</h3><div class="card">${taches.map(a=>`<div class="item"><input type="checkbox" onchange="toggleAction(${a.id},this.checked)" style="width:18px;height:18px;accent-color:var(--accent);flex-shrink:0;cursor:pointer"><div class="grow"><div class="t">${(a.titre||'').replace(/</g,"&lt;")}</div><div class="s"><i class="ti ti-calendar"></i> ${new Date(a.echeance).toLocaleDateString('fr-FR')}</div></div></div>`).join("")}</div></div>`);
@@ -1128,7 +1131,7 @@ async function emailPayLink(id,btn){
   if(await overEmailQuota())return;
   const bo=btn?btn.innerHTML:"";if(btn){btn.disabled=true;btn.innerHTML='<span class="spin"></span> Envoi…';}
   const nom=$("nom").value||"le club";
-  const acc=clubPrimary||"#3b4cd8";
+  const acc=clubPrimary||"#1e40af";
   const montant=(+p.montant)?(+p.montant).toLocaleString('fr-FR')+" €":"";
   const subject="Votre partenariat avec "+nom+(montant?" — "+montant:"");
   const bodyTxt="Merci pour votre soutien au "+nom+" ! Réglez votre partenariat en ligne : "+link;

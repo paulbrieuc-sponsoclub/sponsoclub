@@ -4,14 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sponsoclub — Console admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Crect width='52' height='52' rx='14' fill='%230f172a'/%3E%3Ctext x='24' y='35' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-size='30' font-weight='700' fill='white'%3Esc%3C/text%3E%3Ccircle cx='40' cy='33' r='4' fill='%23159169'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-  :root{--bg:#f5f6f8;--surface:#fff;--surface2:#f0f2f5;--text:#1a1d21;--muted:#6b7280;--faint:#9ca3af;--border:#e5e7eb;--bstrong:#d1d5db;--accent:#3b4cd8;--accentbg:#eceefb;--green:#159169;--greenbg:#e2f4ee;--amber:#b5730f;--amberbg:#fbf0dd;
+  :root{--bg:#f5f6f8;--surface:#fff;--surface2:#f0f2f5;--text:#1a1d21;--muted:#6b7280;--faint:#9ca3af;--border:#e5e7eb;--bstrong:#d1d5db;--accent:#1e40af;--accentbg:#e7edfb;--green:#159169;--greenbg:#e2f4ee;--amber:#b5730f;--amberbg:#fbf0dd;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-size:14px}
-  .top{background:#14161c;color:#fff;padding:15px 24px;display:flex;align-items:center;gap:12px}
+  .top{background:#0f172a;color:#fff;padding:15px 24px;display:flex;align-items:center;gap:12px}
   .top .logo{width:32px;height:32px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:18px}
   .top h1{font-size:16px;font-weight:600}
   .top .tag{margin-left:auto;font-size:12px;color:#9aa0b0}
@@ -53,7 +56,7 @@
 </style>
 </head>
 <body>
-<div class="top"><div class="logo"><i class="ti ti-trophy"></i></div><h1>Sponsoclub</h1><span class="tag">Console admin</span></div>
+<div class="top"><h1 style="font-family:'Sora',sans-serif;font-weight:600;letter-spacing:-.02em">sponsoclub<span style="color:#34d399">.</span></h1><span class="tag">Console admin</span></div>
 
 <div id="login" class="login">
   <h2>Console admin</h2>
@@ -124,7 +127,7 @@ function renderKpis(){
 function renderFunnel(){
   const s=DATA.statuts, order=["À contacter","Contacté","RDV","Signé","Perdu"];
   const max=Math.max(1,...order.map(o=>s[o]||0));
-  const col={"À contacter":"#9ca3af","Contacté":"#3b4cd8","RDV":"#b5730f","Signé":"#159169","Perdu":"#e24b4a"};
+  const col={"À contacter":"#9ca3af","Contacté":"#1e40af","RDV":"#b5730f","Signé":"#159169","Perdu":"#e24b4a"};
   document.getElementById("funnel").innerHTML=order.map(o=>`<div class="f"><div class="fl">${o}</div><div class="fb" style="width:${Math.round((s[o]||0)/max*100)}%;background:${col[o]}"></div><div class="fn">${s[o]||0}</div></div>`).join("");
 }
 function renderChart(){
@@ -133,7 +136,7 @@ function renderChart(){
   if(chart)chart.destroy();
   chart=new Chart(document.getElementById("chart"),{
     data:{labels,datasets:[
-      {type:"bar",label:"Sponsoring signé (€)",data:spon,backgroundColor:"#3b4cd8",borderRadius:5,yAxisID:"y"},
+      {type:"bar",label:"Sponsoring signé (€)",data:spon,backgroundColor:"#1e40af",borderRadius:5,yAxisID:"y"},
       {type:"line",label:"Dossiers créés",data:dos,borderColor:"#159169",backgroundColor:"#159169",tension:.3,yAxisID:"y1"}
     ]},
     options:{responsive:true,maintainAspectRatio:false,interaction:{mode:"index",intersect:false},
@@ -166,7 +169,7 @@ async function impersonate(email){
 let PROSPECT=[];
 const PSTATUTS=["Envoyé","Vu","Répondu","Relancé","RDV","Signé","Pas intéressé"];
 const PREPONSE=["En attente","Intéressé","RDV pris","Pas intéressé"];
-const PCOL={"Envoyé":"#eceefb|#3b4cd8","Vu":"#eef0f2|#6b7280","Répondu":"#e2f4ee|#159169","Relancé":"#fbf0dd|#b5730f","RDV":"#fbf0dd|#b5730f","Signé":"#e2f4ee|#159169","Pas intéressé":"#fbe6e6|#c23b3b"};
+const PCOL={"Envoyé":"#e7edfb|#1e40af","Vu":"#eef0f2|#6b7280","Répondu":"#e2f4ee|#159169","Relancé":"#fbf0dd|#b5730f","RDV":"#fbf0dd|#b5730f","Signé":"#e2f4ee|#159169","Pas intéressé":"#fbe6e6|#c23b3b"};
 function pesc(v){return (v==null?"":String(v)).replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");}
 const SEED=[
  ["Rugby Club Drouais","rcdrouais","Hors IdF (Dreux)"],["URC 78","urc78","Régionale 1 IdF"],

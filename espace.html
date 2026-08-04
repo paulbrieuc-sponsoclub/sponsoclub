@@ -4,9 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Espace partenaire</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Crect width='52' height='52' rx='14' fill='%230f172a'/%3E%3Ctext x='24' y='35' text-anchor='middle' font-family='Arial,Helvetica,sans-serif' font-size='30' font-weight='700' fill='white'%3Esc%3C/text%3E%3Ccircle cx='40' cy='33' r='4' fill='%23159169'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.5.0/dist/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600&display=swap" rel="stylesheet">
 <style>
-  :root{--accent:#3b4cd8;--sec:#e0b400;--bg:#f4f5f7;--surface:#fff;--text:#15171c;--muted:#6b7280;--faint:#9aa1ab;--border:#eceef1;--green:#159169;--greenbg:#e6f6ef;
+  :root{--accent:#1e40af;--sec:#159169;--bg:#f4f5f7;--surface:#fff;--text:#15171c;--muted:#6b7280;--faint:#9aa1ab;--border:#eceef1;--green:#159169;--greenbg:#e6f6ef;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
@@ -127,8 +130,8 @@ function postEmbed(u){
 }
 function render(d){
   const c=d.club,s=d.sponsor,cps=d.contreparties||[];CLUB=c;SPONSOR=s;
-  document.documentElement.style.setProperty("--accent",c.primary||"#3b4cd8");
-  document.documentElement.style.setProperty("--sec",c.secondary||"#e0b400");
+  document.documentElement.style.setProperty("--accent",c.primary||"#1e40af");
+  document.documentElement.style.setProperty("--sec",c.secondary||"#159169");
   document.title="Espace partenaire · "+c.nom;
   const logo=c.logo?`<img class="logo" src="${c.logo}" alt="">`:`<div class="logoph"><i class="ti ti-trophy"></i></div>`;
   const done=cps.filter(x=>x.done).length;
@@ -232,7 +235,7 @@ function render(d){
     ${(!(c.mecenat&&s.montant)&&!s.contrat)?`<div class="card"><div class="empty2">Aucun document disponible pour l'instant.</div></div>`:""}
     </div>
 
-    <div class="foot">Espace généré par <a href="https://sponsoclub.fr" target="_blank">Sponsoclub</a> pour ${esc(c.nom)}.</div>
+    <div class="foot">Espace généré par <a href="https://sponsoclub.fr" target="_blank" style="font-family:'Sora',sans-serif;font-weight:600;letter-spacing:-.02em">sponsoclub<span style="color:#159169">.</span></a> pour ${esc(c.nom)}.</div>
   </div>`;
 }
 function val(id){const e=$(id);return e?e.value.trim():"";}
